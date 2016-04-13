@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.design.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/new_imageViewVerticalHeight"
+                android:background="@color/defaultImageBackgroundColor"
+                android:id="@+id/new_spot_frame"
+                android:layout_marginTop="@dimen/default_toolbar_height">
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/new_spot_imageView"
+                    android:contentDescription="@string/default_content_description"
+                    android:layout_gravity="center"
+                    android:maxHeight="@dimen/new_imageViewVerticalHeight"
+                    android:background="@drawable/ic_photo_camera_stencil__by_silver2012_d79r9re" />
+            </FrameLayout>
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/default_line_height"
+                android:id="@+id/new_spot_cat_layout">
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/imageView2"
+                    android:layout_centerVertical="true"
+                    android:background="@drawable/ic_collections_bookmark_black_24dp"
+                    android:layout_marginLeft="@dimen/default_spot_icon_margin" />
+
+                <me.grantland.widget.AutofitTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/new_spot_cat_textView"
+                    android:text="@string/new_spot_default_cat"
+                    android:paddingLeft="@dimen/default_text_padding_left_right"
+                    android:paddingRight="@dimen/default_text_padding_left_right"
+                    android:paddingTop="@dimen/default_text_padding_below_above"
+                    android:paddingBottom="@dimen/default_text_padding_below_above"
+                    android:layout_alignParentTop="true"
+                    android:layout_toEndOf="@+id/cat_label"
+                    android:layout_toRightOf="@+id/cat_label"
+                    android:textSize="@dimen/default_text_size" />
+
+                <me.grantland.widget.AutofitTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?android:attr/textAppearanceSmall"
+                    android:text="@string/category"
+                    android:id="@+id/cat_label"
+                    android:paddingLeft="@dimen/default_text_padding_left_right"
+                    android:paddingRight="@dimen/default_text_padding_left_right"
+                    android:paddingTop="@dimen/default_text_padding_below_above"
+                    android:paddingBottom="@dimen/default_text_padding_below_above"
+                    android:layout_alignParentTop="true"
+                    android:layout_toEndOf="@+id/imageView2"
+                    android:layout_toRightOf="@+id/imageView2"
+                    android:textSize="@dimen/default_text_size" />
+
+            </RelativeLayout>
+
+
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@android:color/darker_gray"
+                android:layout_margin="@dimen/line_margin_all" />
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/default_line_height"
+                android:layout_gravity="center_horizontal">
+
+                <me.grantland.widget.AutofitTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?android:attr/textAppearanceSmall"
+                    android:id="@+id/new_spot_lon"
+                    android:paddingLeft="@dimen/default_text_padding_left_right"
+                    android:text="@string/xxx"
+                    android:layout_alignParentTop="true"
+                    android:layout_toEndOf="@+id/new_spot_lon_label"
+                    android:layout_toRightOf="@+id/new_spot_lon_label"
+                    android:paddingRight="@dimen/default_text_padding_left_right"
+                    android:paddingTop="@dimen/default_text_padding_below_above"
+                    android:paddingBottom="@dimen/default_text_padding_below_above"
+                    android:inputType="number"
+                    android:textSize="@dimen/default_text_size"
+                    android:maxLength="10" />
+
+                <me.grantland.widget.AutofitTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?android:attr/textAppearanceSmall"
+                    android:text="@string/longitude"
+                    android:id="@+id/new_spot_lon_label"
+                    android:paddingLeft="@dimen/default_text_padding_left_right"
+                    android:layout_alignParentTop="true"
+                    android:layout_toEndOf="@+id/new_spot_lat"
+                    android:layout_toRightOf="@+id/new_spot_lat"
+                    android:paddingRight="@dimen/default_text_padding_left_right"
+                    android:paddingTop="@dimen/default_text_padding_below_above"
+                    android:paddingBottom="@dimen/default_text_padding_below_above"
+                    android:textSize="@dimen/default_text_size" />
+
+                <me.grantland.widget.AutofitTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?android:attr/textAppearanceSmall"
+                    android:text="@string/latitude"
+                    android:id="@+id/new_spot_lat_label"
+                    android:paddingLeft="@dimen/default_text_padding_left_right"
+                    android:layout_alignParentTop="true"
+                    android:layout_toEndOf="@+id/imageView5"
+                    android:layout_toRightOf="@+id/imageView5"
+                    android:paddingRight="@dimen/default_text_padding_left_right"
+                    android:paddingTop="@dimen/default_text_padding_below_above"
+                    android:paddingBottom="@dimen/default_text_padding_below_above"
+                    android:textSize="@dimen/default_text_size" />
+
+                <me.grantland.widget.AutofitTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?android:attr/textAppearanceSmall"
+                    android:id="@+id/new_spot_lat"
+                    android:paddingLeft="@dimen/default_text_padding_left_right"
+                    android:text="@string/xxx"
+                    android:layout_alignParentTop="true"
+                    android:layout_toEndOf="@+id/new_spot_lat_label"
+                    android:layout_toRightOf="@+id/new_spot_lat_label"
+                    android:paddingRight="@dimen/default_text_padding_left_right"
+                    android:paddingTop="@dimen/default_text_padding_below_above"
+                    android:paddingBottom="@dimen/default_text_padding_below_above"
+                    android:textSize="@dimen/default_text_size"
+                    android:inputType="number"
+                    android:maxLength="10" />
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/imageView5"
+                    android:background="@drawable/ic_my_location_black_24dp"
+                    android:layout_marginLeft="@dimen/default_spot_icon_margin"
+                    android:layout_marginStart="14dp"
+                    android:layout_centerVertical="true"
+                    android:layout_alignParentStart="true"
+                    android:layout_alignParentLeft="true"/>
+
+            </RelativeLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@android:color/darker_gray"
+                android:layout_margin="@dimen/line_margin_all" />
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <EditText
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:ems="10"
+                    android:id="@+id/new_spot_notes_editText"
+                    android:layout_gravity="center_horizontal"
+                    android:lines="1"
+                    android:hint="@string/notes"
+                    android:layout_alignParentTop="true"
+                    android:inputType="text"
+                    android:paddingTop="@dimen/default_text_padding_below_above"
+                    android:paddingBottom="@dimen/default_text_padding_below_above"
+                    android:paddingRight="@dimen/default_text_padding_left_right"
+                    android:paddingLeft="@dimen/default_text_padding_left_right"
+                    android:textSize="@dimen/default_text_size"
+                    android:layout_toRightOf="@+id/imageView4"
+                    android:layout_toEndOf="@+id/imageView4" />
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/imageView4"
+                    android:background="@drawable/ic_edit_black_24dp"
+                    android:layout_centerVertical="true"
+                    android:layout_alignParentStart="true"
+                    android:layout_alignParentLeft="true"
+                    android:layout_marginLeft="@dimen/default_spot_icon_margin" />
+            </RelativeLayout>
+
+
+
+
+        </LinearLayout>
+    </ScrollView>
+
+    <android.support.design.widget.FloatingActionButton
+        android:id="@+id/new_spot_fab_photo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:clickable="true"
+        android:src="@drawable/ic_camera_alt_white_24dp"
+        app:layout_anchor="@id/new_spot_frame"
+        app:layout_anchorGravity="bottom|right|end"/>
+
+
+</android.support.design.widget.CoordinatorLayout>

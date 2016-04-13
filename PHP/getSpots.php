@@ -8,7 +8,7 @@ $result = array();
 // include db connect class
 require_once __DIR__ . '/spotboy_db_connect.php';
 
-if(  /*isset($_POST['range']) && isset($_POST['spotType'])*/ true ){
+if(  isset($_POST['range']) && isset($_POST['spotType']) ){
 	// connecting to db
 	$db = new DB_CONNECT();
 	$result = mysql_query("SELECT * FROM spots") or die(mysql_error());

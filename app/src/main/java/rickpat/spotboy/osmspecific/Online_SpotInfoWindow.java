@@ -1,10 +1,7 @@
-package rickpat.spotboy.spotspecific;
+package rickpat.spotboy.osmspecific;
 
 import android.app.Activity;
-import android.content.res.Resources;
 import android.graphics.Bitmap;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -16,9 +13,6 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.ImageRequest;
 import com.android.volley.toolbox.Volley;
 
-import rickpat.spotboy.R;
-import rickpat.spotboy.utilities.Utilities;
-
 import org.osmdroid.bonuspack.overlays.InfoWindow;
 import org.osmdroid.views.MapView;
 
@@ -26,32 +20,26 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Locale;
 
-public class SpotInfoWindow extends InfoWindow {
+import rickpat.spotboy.R;
+import rickpat.spotboy.spotspecific.Spot;
+import rickpat.spotboy.spotspecific.SpotMarker;
+
+public class Online_SpotInfoWindow extends InfoWindow {
 
     private InfoCallback infoCallback;
-    private Resources resources;
-    private boolean isRemoteSpot;
     private Activity activity;
-    private String log = "SpotInfoWindow";
-    private int maxW;
-    private int maxH;
+    private String log = "Offline_SpotInfoWindow";
 
     public interface InfoCallback{
         void infoCallback(Spot remote);
     }
 
-    public SpotInfoWindow(int layoutResId, MapView mapView , Activity activity) {
+    public Online_SpotInfoWindow(int layoutResId, MapView mapView, Activity activity) {
         super(layoutResId, mapView);
         this.infoCallback = (InfoCallback)activity;
-        this.resources = activity.getResources();
         this.activity = activity;
-        maxH = 0;   //default
-        maxW = (int)resources.getDimension(R.dimen.infoWindow_imageDimMax);
     }
 
-    public void setIsRemoteSpot(boolean isRemoteSpot) {
-        this.isRemoteSpot = isRemoteSpot;
-    }
 
     @Override
     public void onOpen(Object item) {
@@ -64,28 +52,23 @@ public class SpotInfoWindow extends InfoWindow {
 
         DateFormat df = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.GERMAN);
 
-        if ( !isRemoteSpot && myMarker.getSpot().getUri() != null){ //local stored spot with image
-            imageView.setVisibility(View.VISIBLE);
-            Bitmap bitmap = Utilities.decodeSampledBitmapFromResource(resources, myMarker.getSpot().getUri(), maxW, maxH);
-            Drawable drawable = new BitmapDrawable(resources, bitmap);
-            imageView.setImageDrawable(drawable);
-        }else if ( isRemoteSpot && myMarker.getSpot().getUri() != null){ //spot with image is stored on server
-            imageView.setVisibility(View.VISIBLE);
-            String uri = myMarker.getSpot().getUri();
-            ImageRequest imageRequest = new ImageRequest(uri, new Response.Listener<Bitmap>() {
+        if ( myMarker.getSpot().getUrlList().size() > 0 ){
+            final String url = myMarker.getSpot().getUrlList().get(0);
+            ImageRequest imageRequest = new ImageRequest(url, new Response.Listener<Bitmap>() {
                 @Override
                 public void onResponse(Bitmap response) {
                     imageView.setImageBitmap(response);
                 }
-            }, maxH, maxW, ImageView.ScaleType.CENTER, Bitmap.Config.ARGB_8888, new Response.ErrorListener() {
+            }, 200, 300, ImageView.ScaleType.CENTER, Bitmap.Config.ARGB_8888, new Response.ErrorListener() {
                 @Override
                 public void onErrorResponse(VolleyError error) {
-                    Log.d(log,"url: " + myMarker.getSpot().getUri());
+                    Log.d(log, "url: " + url);
                 }
             });
 
             Volley.newRequestQueue(activity).add(imageRequest);
         }
+
         catTextView.setText(myMarker.getSpot().getSpotType().toString());
         notesTextView.setText(myMarker.getSpot().getNotes());
         dateTextView.setText(df.format(myMarker.getSpot().getDate()));

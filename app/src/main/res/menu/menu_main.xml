@@ -1,7 +1,7 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    tools:context=".LoginActivity">
+    tools:context=".activities.LoginActivity">
     <item
         android:id="@+id/action_settings"
         android:orderInCategory="100"
@@ -24,5 +24,11 @@
         android:id="@+id/action_new"
         android:orderInCategory="100"
         android:title="@string/action_new"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_kml"
+        android:orderInCategory="100"
+        android:title="@string/action_kml"
         app:showAsAction="ifRoom" />
 </menu>

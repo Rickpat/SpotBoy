@@ -20,20 +20,21 @@ import android.widget.Toast;
 
 import com.google.gson.Gson;
 
-import rickpat.spotboy.AboutActivity;
+import rickpat.spotboy.activities.AboutActivity;
 import rickpat.spotboy.R;
+import rickpat.spotboy.activities.KML_Activity_Start;
 import rickpat.spotboy.enums.SpotType;
 import rickpat.spotboy.offline_database.SpotBoyDBHelper;
 import rickpat.spotboy.osmspecific.MyLocationOverlay;
+import rickpat.spotboy.osmspecific.Offline_SpotInfoWindow;
 import rickpat.spotboy.osmspecific.SpotCluster;
 import rickpat.spotboy.spotspecific.Spot;
-import rickpat.spotboy.spotspecific.SpotLocal;
-import rickpat.spotboy.spotspecific.SpotRemote;
-import rickpat.spotboy.spotspecific.SpotInfoWindow;
 import rickpat.spotboy.spotspecific.SpotMarker;
 import rickpat.spotboy.utilities.Utilities;
 
 import org.osmdroid.api.IMapController;
+import org.osmdroid.bonuspack.kml.KmlDocument;
+import org.osmdroid.bonuspack.overlays.FolderOverlay;
 import org.osmdroid.bonuspack.overlays.MapEventsOverlay;
 import org.osmdroid.bonuspack.overlays.MapEventsReceiver;
 import org.osmdroid.bonuspack.overlays.Marker;
@@ -41,6 +42,7 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -64,7 +66,7 @@ import static rickpat.spotboy.utilities.Constants.*;
 * */
 
 public class Offline_MainActivity extends AppCompatActivity implements MapEventsReceiver, View.OnClickListener,
-        MyLocationOverlay.IMyLocationCallback, View.OnLongClickListener, SpotInfoWindow.InfoCallback{
+        MyLocationOverlay.IMyLocationCallback, View.OnLongClickListener, Offline_SpotInfoWindow.InfoCallback{
 
     private String log ="Offline_MainActivity";
     private MyLocationOverlay myLocationOverlay;
@@ -75,8 +77,11 @@ public class Offline_MainActivity extends AppCompatActivity implements MapEvents
     private AlertDialog activateGPSDialog;
 
     //takes all spots
-    private List<SpotLocal> spotList;
+    private List<Spot> spotList;
     private HashMap<SpotType, SpotCluster> spotClusterHashMap;
+
+    private File kmlFile;
+    private FolderOverlay kmlOverlay;
 
 
     //todo save and restore layer selection
@@ -90,6 +95,14 @@ public class Offline_MainActivity extends AppCompatActivity implements MapEvents
         }
         map.getController().setCenter(new Gson().fromJson(preferences.getString(CACHED_MAP_CAMERA_GEOPOINT, ""), GeoPoint.class));
         map.getController().setZoom(preferences.getInt(CACHED_MAP_CAMERA_ZOOM, 15));
+
+        if( preferences.contains(KML_FILE) ){
+            kmlFile = new Gson().fromJson(preferences.getString(KML_FILE,""),File.class);
+            if ( kmlFile != null ){
+                createKMLDoc();
+            }
+        }
+
         Log.d(log, "onRestoreInstanceState");
     }
 
@@ -104,6 +117,7 @@ public class Offline_MainActivity extends AppCompatActivity implements MapEvents
         }
         editor.putString(CACHED_MAP_CAMERA_GEOPOINT, new Gson().toJson(map.getMapCenter()));
         editor.putInt(CACHED_MAP_CAMERA_ZOOM, map.getZoomLevel());
+        editor.putString(KML_FILE, new Gson().toJson(kmlFile));
         editor.apply();
     }
 
@@ -112,7 +126,7 @@ public class Offline_MainActivity extends AppCompatActivity implements MapEvents
         super.onStart();
         Log.d(log, "onStart");
         myLocationOverlay.enableMyLocation();
-        createSpotCluster();
+        createMapLayer();
 
         int off = 0;
         try {
@@ -130,7 +144,7 @@ public class Offline_MainActivity extends AppCompatActivity implements MapEvents
         super.onPause();
         Log.d(log, "onPause");
         myLocationOverlay.disableMyLocation();
-        removeAllClusters();
+        removeAllLayer();
     }
 
     @Override   //After onRestoreInstanceState
@@ -180,6 +194,12 @@ public class Offline_MainActivity extends AppCompatActivity implements MapEvents
                 newIntent.putExtra(GEOPOINT,new Gson().toJson(new GeoPoint(loc)));
                 startActivityForResult(newIntent, NEW_SPOT_REQUEST);
                 break;
+
+            case R.id.action_kml:
+                Log.d(log,"kml activity");
+                Intent kmlIntent = new Intent(this, KML_Activity_Start.class);
+                startActivityForResult(kmlIntent,KML_ACTIVITY_REQUEST);
+                break;
         }
         return super.onOptionsItemSelected(item);
     }
@@ -209,7 +229,7 @@ public class Offline_MainActivity extends AppCompatActivity implements MapEvents
             // show spot on map result
             Bundle bundle = data.getExtras();
             if (bundle.containsKey(SPOT)){
-                SpotRemote remote = new Gson().fromJson(bundle.getString(SPOT),SpotRemote.class);
+                Spot remote = new Gson().fromJson(bundle.getString(SPOT),Spot.class);
                 map.getController().animateTo(remote.getGeoPoint());
             }
         }
@@ -242,6 +262,34 @@ public class Offline_MainActivity extends AppCompatActivity implements MapEvents
             //spot successfully created
             Toast.makeText(this,getString(R.string.spot_created_message),Toast.LENGTH_SHORT).show();
             loadSpots();
+        }
+
+        if ( requestCode == KML_ACTIVITY_REQUEST){
+            switch (resultCode){
+                case KML_ACTIVITY_RESULT_CREATE:
+                    //todo create new kml file;
+                    Log.d(log,"create new kml file");
+                    break;
+
+                case KML_ACTIVITY_RESULT_LOAD:
+                    //todo load kml from file;
+                    if (data != null) {
+                        Bundle bundle = data.getExtras();
+                        if (bundle.containsKey(KML_URL)) {
+                            kmlFile = new Gson().fromJson(bundle.getString(KML_URL),File.class);
+                            Log.d(log, kmlFile.getName() + " file received");
+                        }
+                    }
+                    break;
+                case KML_ACTIVITY_RESULT_REMOVE:
+                    if (kmlFile != null){
+                        kmlFile = null;
+                        kmlOverlay = null;
+                        SharedPreferences.Editor editor = getSharedPreferences(PREFERENCES,MODE_PRIVATE).edit();
+                        editor.remove(KML_FILE);
+                        editor.apply();
+                    }
+            }
         }
     }
 
@@ -379,13 +427,25 @@ public class Offline_MainActivity extends AppCompatActivity implements MapEvents
     private void loadLocalSpots() {
         Log.d(log,"loadLocalSpots");
         SpotBoyDBHelper spotBoyDBHelper = new SpotBoyDBHelper(this,null,null,1);
-        spotList = spotBoyDBHelper.getSpotList();
+        spotList = spotBoyDBHelper.getSpotListMultipleImages();
         Log.d(log, " " + spotList.size() + " spots from local database loaded");
     }
 
-    private void createSpotCluster() {
-        Log.d(log, "createSpotCluster");
+    private void createMapLayer() {
+        Log.d(log, "createMapLayer");
         createLocalSpotClusters();
+        if (kmlFile != null){
+            createKMLDoc();
+        }
+    }
+
+    private void createKMLDoc() {
+        Log.d(log, "adding kml file to map");
+        KmlDocument kmlDocument = new KmlDocument();
+        kmlDocument.parseKMLFile(kmlFile);
+        kmlOverlay = (FolderOverlay) kmlDocument.mKmlRoot.buildOverlay(map, null, null, kmlDocument);
+        map.getOverlays().add(kmlOverlay);
+        map.invalidate();
     }
 
     private void createLocalSpotClusters() {
@@ -397,12 +457,12 @@ public class Offline_MainActivity extends AppCompatActivity implements MapEvents
             spotCluster.setIcon(Utilities.getClusterIcon(getApplicationContext(), spotType));
             spotClusterHashMap.put(spotType, spotCluster);
         }
-        for (SpotLocal localSpot : spotList){
+        for (Spot localSpot : spotList){
             //Log.d(log, "SpotRemote id: " + remote.getId() + " type: " + remote.getSpotType());
             SpotMarker spotMarker = new SpotMarker(map, localSpot);
             spotMarker.setIcon(Utilities.getMarkerIcon(getApplicationContext(), localSpot.getSpotType()));
             spotMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-            spotMarker.setInfoWindow(new SpotInfoWindow(R.layout.info_window,map,this));
+            spotMarker.setInfoWindow(new Offline_SpotInfoWindow(R.layout.info_window,map,this));
             spotClusterHashMap.get(localSpot.getSpotType()).add(spotMarker);
         }
         for (SpotCluster spotCluster : spotClusterHashMap.values()){
@@ -412,12 +472,17 @@ public class Offline_MainActivity extends AppCompatActivity implements MapEvents
         map.invalidate();
     }
 
-    private void removeAllClusters(){
-        Log.d(log,"removeAllClusters (all)");
+    private void removeAllLayer(){
+        Log.d(log, "removeAllLayer (all)");
         for (SpotCluster spotCluster : spotClusterHashMap.values()){
             map.getOverlays().remove(spotCluster);
         }
         spotClusterHashMap.clear();
+
+        if ( map.getOverlays().contains(kmlOverlay)){
+            Log.d(log,"removing kml overlay");
+            map.getOverlays().remove(kmlOverlay);
+        }
 
         map.invalidate();
     }

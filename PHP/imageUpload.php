@@ -19,8 +19,8 @@ $response = array();
 	$result = mysql_query("UPDATE spots SET imgURL='$actualpath' WHERE id='$id'") or die(mysql_error());
  
 	if($result){
-		//creates a new file...
 		file_put_contents($path,base64_decode($image));
+		//creates a new file...
 		// successfully inserted into database
 		$response["action"] = "IMAGE_UPLOAD";
 		$response["success"] = 1;

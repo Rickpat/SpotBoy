@@ -14,14 +14,14 @@ import com.google.gson.Gson;
 
 import rickpat.spotboy.R;
 import rickpat.spotboy.offline_database.SpotBoyDBHelper;
-import rickpat.spotboy.spotspecific.SpotLocal;
-import rickpat.spotboy.utilities.Offline_SpotHubAdapter;
+import rickpat.spotboy.spotspecific.Spot;
+import rickpat.spotboy.utilities.SpotHubAdapter;
 
 import static rickpat.spotboy.utilities.Constants.*;
 
-public class Offline_HubActivity extends AppCompatActivity implements Offline_SpotHubAdapter.IHubAdapter {
+public class Offline_HubActivity extends AppCompatActivity implements SpotHubAdapter.IHubAdapter {
 
-    private Offline_SpotHubAdapter mAdapter;
+    private SpotHubAdapter mAdapter;
     private String log = "OFFLINE_HUB_ACTIVITY";
     private boolean modified_db = false;
 
@@ -69,7 +69,7 @@ public class Offline_HubActivity extends AppCompatActivity implements Offline_Sp
         mRecyclerView.setLayoutManager(mLayoutManager);
 
         // specify an adapter (see also next example)
-        mAdapter = new Offline_SpotHubAdapter(spotBoyDBHelper.getSpotList(), this);
+        mAdapter = new SpotHubAdapter(spotBoyDBHelper.getSpotListMultipleImages(), this);
         mRecyclerView.setAdapter(mAdapter);
 
     }
@@ -93,7 +93,7 @@ public class Offline_HubActivity extends AppCompatActivity implements Offline_Sp
     }
 
     @Override
-    public void moreButtonCallback(SpotLocal remote) {
+    public void moreButtonCallback(Spot remote) {
         Log.d(log,"moreButtonCallback");
         Intent infoIntent = new Intent(this,Offline_InfoActivity.class);
         infoIntent.putExtra(SPOT,new Gson().toJson(remote));
@@ -102,7 +102,7 @@ public class Offline_HubActivity extends AppCompatActivity implements Offline_Sp
     }
 
     @Override
-    public void markerButtonCallback(SpotLocal remote) {
+    public void markerButtonCallback(Spot remote) {
         Log.d(log,"markerButtonCallback");
         Intent showMarkerIntent = new Intent();
         showMarkerIntent.putExtra(SPOT,new Gson().toJson(remote));
@@ -119,12 +119,12 @@ public class Offline_HubActivity extends AppCompatActivity implements Offline_Sp
             switch (resultCode){
                 case INFO_ACTIVITY_SPOT_DELETED:
                     Log.d(log,"INFO_ACTIVITY_SPOT_DELETED");
-                    mAdapter.updateList(spotBoyDBHelper.getSpotList());
+                    mAdapter.updateList(spotBoyDBHelper.getSpotListMultipleImages());
                     modified_db = true;
                     break;
                 case INFO_ACTIVITY_SPOT_MODIFIED:
                     Log.d(log,"INFO_ACTIVITY_SPOT_MODIFIED");
-                    mAdapter.updateList(spotBoyDBHelper.getSpotList());
+                    mAdapter.updateList(spotBoyDBHelper.getSpotListMultipleImages());
                     modified_db = true;
             }
         }

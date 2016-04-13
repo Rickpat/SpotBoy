@@ -26,9 +26,9 @@ import java.util.List;
 
 import rickpat.spotboy.R;
 import rickpat.spotboy.online_activities.Online_InfoActivity;
-import rickpat.spotboy.spotspecific.SpotRemote;
-import rickpat.spotboy.utilities.Online_SpotHubAdapter;
+import rickpat.spotboy.spotspecific.Spot;
 import rickpat.spotboy.utilities.SpotBoy_Server_URIs;
+import rickpat.spotboy.utilities.SpotHubAdapter;
 import rickpat.spotboy.utilities.Utilities;
 
 import static rickpat.spotboy.utilities.Constants.GOOGLE_ID;
@@ -39,12 +39,12 @@ import static rickpat.spotboy.utilities.Constants.INFO_ACTIVITY_SPOT_DELETED;
 import static rickpat.spotboy.utilities.Constants.INFO_ACTIVITY_SPOT_MODIFIED;
 import static rickpat.spotboy.utilities.Constants.SPOT;
 
-public class HubUserFragment extends Fragment  implements Online_SpotHubAdapter.IHubAdapter, Response.ErrorListener, Response.Listener<JSONObject>{
+public class HubUserFragment extends Fragment  implements SpotHubAdapter.IHubAdapter, Response.ErrorListener, Response.Listener<JSONObject>{
 
     protected RecyclerView mRecyclerView;
-    protected Online_SpotHubAdapter mAdapter;
+    protected SpotHubAdapter mAdapter;
     protected RecyclerView.LayoutManager mLayoutManager;
-    protected List<SpotRemote> spotList;
+    protected List<Spot> spotList;
     private String log = "HUB_USER_FRAGMENT";
 
     private String googleId;
@@ -67,7 +67,7 @@ public class HubUserFragment extends Fragment  implements Online_SpotHubAdapter.
 
         mLayoutManager = new LinearLayoutManager(this.getContext());
 
-        mAdapter = new Online_SpotHubAdapter(spotList,this);
+        mAdapter = new SpotHubAdapter(spotList,this.getActivity());
 
 
         mRecyclerView.setLayoutManager(mLayoutManager);
@@ -89,7 +89,7 @@ public class HubUserFragment extends Fragment  implements Online_SpotHubAdapter.
     }
 
     @Override
-    public void moreButtonCallback(SpotRemote spot) {
+    public void moreButtonCallback(Spot spot) {
         Log.d(log, "moreButtonCallback");
 
         Intent infoIntent = new Intent(this.getContext(),Online_InfoActivity.class);
@@ -102,7 +102,7 @@ public class HubUserFragment extends Fragment  implements Online_SpotHubAdapter.
 
 
     @Override
-    public void markerButtonCallback(SpotRemote spot) {
+    public void markerButtonCallback(Spot spot) {
         Log.d(log, "markerButtonCallback");
         Intent showMarkerIntent = new Intent();
         showMarkerIntent.putExtra(SPOT, new Gson().toJson(spot));

@@ -36,7 +36,7 @@ import java.util.Locale;
 import java.util.Map;
 
 import rickpat.spotboy.R;
-import rickpat.spotboy.spotspecific.SpotRemote;
+import rickpat.spotboy.spotspecific.Spot;
 import rickpat.spotboy.utilities.Utilities;
 
 import static rickpat.spotboy.utilities.Constants.GOOGLE_ID;
@@ -49,7 +49,7 @@ import static rickpat.spotboy.utilities.SpotBoy_Server_URIs.*;
 
 public class Online_InfoActivity extends AppCompatActivity implements View.OnClickListener {
 
-    private SpotRemote spot;
+    private Spot spot;
 
     private String log="Online_InfoActivity";
 
@@ -77,7 +77,7 @@ public class Online_InfoActivity extends AppCompatActivity implements View.OnCli
         Bundle bundle = getIntent().getExtras();
 
         if ( bundle.containsKey(SPOT) && bundle.containsKey(GOOGLE_NAME) && bundle.containsKey(GOOGLE_ID) ){
-            spot = new Gson().fromJson(bundle.getString(SPOT), SpotRemote.class);
+            spot = new Gson().fromJson(bundle.getString(SPOT), Spot.class);
             googleId = bundle.getString(GOOGLE_ID);
             googleName = bundle.getString(GOOGLE_NAME);
             Log.d(log,"id: " + spot.getId() + " spotCreatorGoogleId: " + spot.getGoogleId() + "\nuser googleId: " + googleId + " userName: " + googleName);
@@ -96,11 +96,10 @@ public class Online_InfoActivity extends AppCompatActivity implements View.OnCli
     }
 
     private void setContent() {
-        ((TextView)findViewById(R.id.info_spotTypeTextView)).setText(spot.getSpotType().toString());
+        ((TextView)findViewById(R.id.info_catTextView)).setText(spot.getSpotType().toString());
         ((TextView)findViewById(R.id.info_notesTextView)).setText(spot.getNotes());
-        if (spot.getUri() != null){
-            setImage();
-        }
+
+        //todo load images
 
         DateFormat df = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.GERMAN);
 
@@ -114,26 +113,6 @@ public class Online_InfoActivity extends AppCompatActivity implements View.OnCli
             findViewById(R.id.info_notes_fab_edit).setVisibility(View.GONE);
         }
 
-    }
-
-    private void setImage() {
-        Log.d(log, "setImage()");
-        int maxW = Utilities.getDeviceWidth(this);
-        //Bitmap bitmap = Utilities.decodeSampledBitmapFromResource(getResources(), spot.getUri(), displayW, 500);
-        ImageRequest imageRequest = new ImageRequest(spot.getUri(), new Response.Listener<Bitmap>() {
-            @Override
-            public void onResponse(Bitmap response) {
-                Log.d(log, "volley/ onResponse");
-                ((ImageView)findViewById(R.id.info_imageView)).setImageBitmap(response);
-                findViewById(R.id.info_imageView).setBackground(null);
-            }
-        }, maxW, 0, ImageView.ScaleType.CENTER, Bitmap.Config.ARGB_8888, new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
-                Log.d(log, "volley/ onErrorResponse" + error.getMessage());
-            }
-        });
-        Volley.newRequestQueue(this).add(imageRequest);
     }
 
     private void setDialogs() {
@@ -171,7 +150,7 @@ public class Online_InfoActivity extends AppCompatActivity implements View.OnCli
                                     if (success){
                                         isModified = true;
                                         spot.setSpotType(Utilities.parseSpotTypeString(selectedSpotType));
-                                        ((TextView)findViewById(R.id.info_spotTypeTextView)).setText(selectedSpotType);
+                                        ((TextView)findViewById(R.id.info_catTextView)).setText(selectedSpotType);
                                         Toast.makeText(Online_InfoActivity.this,message,Toast.LENGTH_SHORT).show();
                                     } else {
                                         Toast.makeText(Online_InfoActivity.this,getString(R.string.db_error),Toast.LENGTH_SHORT).show();

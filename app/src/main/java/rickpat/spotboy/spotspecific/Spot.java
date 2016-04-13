@@ -3,25 +3,61 @@ package rickpat.spotboy.spotspecific;
 import org.osmdroid.util.GeoPoint;
 
 import java.util.Date;
+import java.util.List;
 
 import rickpat.spotboy.enums.SpotType;
 
 public class Spot {
 
-    private String id;
-    private GeoPoint geoPoint;
-    private String notes;
-    private String uri;
-    private Date date;
-    private SpotType spotType;
+    /*
+    * Base class
+    *
+    * it contains two constructors for:
+    * - locally or
+    * - server sided stored information about a spot
+    * */
 
-    public Spot(String id, GeoPoint geoPoint, String notes, String uri, Date date, SpotType spotType) {
+    private String googleId;        //creator googleId
+    private String id;              //database row
+    private GeoPoint geoPoint;      //geo information
+    private String notes;           //extra notes
+    private List<String> urlList;   //images
+    private Date date;              //creation time
+    private SpotType spotType;      //type
+
+    /*
+    * this constructor is used for locally stored spots
+    * */
+    public Spot(String id, GeoPoint geoPoint, String notes, List<String> urlList, Date date, SpotType spotType) {
+        this.googleId = "-1";   // this can help to identify it's source
         this.id = id;
         this.geoPoint = geoPoint;
         this.notes = notes;
-        this.uri = uri;
+        this.urlList = urlList;
         this.date = date;
         this.spotType = spotType;
+    }
+
+    /*
+    * this constructor is for spots which are stored on server.
+    * it contains a field for the creators google id.
+    * */
+    public Spot(String googleId, String id, GeoPoint geoPoint, String notes, List<String> urlList, Date date, SpotType spotType) {
+        this.googleId = googleId;
+        this.id = id;
+        this.geoPoint = geoPoint;
+        this.notes = notes;
+        this.urlList = urlList;
+        this.date = date;
+        this.spotType = spotType;
+    }
+
+    public String getGoogleId() {
+        return googleId;
+    }
+
+    public void setGoogleId(String googleId) {
+        this.googleId = googleId;
     }
 
     public String getId() {
@@ -40,12 +76,12 @@ public class Spot {
         this.notes = notes;
     }
 
-    public String getUri() {
-        return uri;
+    public List<String> getUrlList() {
+        return urlList;
     }
 
-    public void setUri(String uri) {
-        this.uri = uri;
+    public void setUrlList(List<String> urlList) {
+        this.urlList = urlList;
     }
 
     public Date getDate() {

@@ -10,6 +10,9 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.support.v4.app.Fragment;
+import android.support.v4.view.PagerAdapter;
+import android.support.v4.view.ViewPager;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -19,7 +22,6 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -31,7 +33,6 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
-import com.bumptech.glide.Glide;
 import com.google.gson.Gson;
 
 import org.json.JSONException;
@@ -41,14 +42,21 @@ import org.osmdroid.util.GeoPoint;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.Vector;
 
 import rickpat.spotboy.R;
 import rickpat.spotboy.enums.SpotType;
-import rickpat.spotboy.spotspecific.SpotRemote;
+import rickpat.spotboy.offline_fragments.GalleryItemFragment;
+import rickpat.spotboy.spotspecific.Spot;
+import rickpat.spotboy.utilities.ScreenSlidePagerAdapter;
 import rickpat.spotboy.utilities.Utilities;
 
 import static rickpat.spotboy.utilities.Constants.*;
@@ -56,11 +64,19 @@ import static rickpat.spotboy.utilities.SpotBoy_Server_URIs.*;
 
 public class Online_NewActivity extends AppCompatActivity implements View.OnClickListener, Response.ErrorListener, Response.Listener<String> {
 
-    private String prefImagePath = "imagePath";
-    private String cat = "cat";
-    private String notes = "notes";
+    private String PREF_SPOT_TYPE = "PREF_SPOT_TYPE";
+    private String PREF_NOTES = "PREF_NOTES";
 
-    private String KEY_IMAGE = "image";
+    private AlertDialog catDialog;
+    private GeoPoint geoPoint;
+    private static final int CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE = 100;
+
+    private ViewPager mPager;
+
+    private Set<String> urlSet;
+    private List<Fragment> viewPagerFragments;
+
+    private String KEY_IMAGE_LIST = "image";
     private String KEY_GOOGLE_ID = "googleId";
     private String KEY_GEO_POINT = "geoPoint";
     private String KEY_SPOT_TYPE = "spotType";
@@ -68,19 +84,13 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
     private String KEY_TIME = "creationTime";
     private String KEY_ID = "rowId";
 
-    private AlertDialog catDialog;
-    private ImageView imageView;
-    private GeoPoint geoPoint;
-    private static final int CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE = 100;
-    private Uri fileUri;
-
     private String googleId;
     private String googleName;
 
     private ProgressDialog progressDialog;
     private String log = "Online_NewActivity";
 
-    private SpotRemote spotRemote;
+    private Spot spot;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -106,40 +116,51 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
         }else {
             finish();
         }
+
+        urlSet = new HashSet<>();
+
+
         findViewById(R.id.new_spot_cat_layout).setOnClickListener(this);
         findViewById(R.id.new_spot_fab_photo).setOnClickListener(this);
-        imageView = (ImageView) findViewById(R.id.new_spot_imageView);
+        mPager = (ViewPager) findViewById(R.id.new_spot_viewPager);
         createDialogs();
+    }
+
+    @Override   //After onCreate
+    protected void onStart() {
+        super.onStart();
+        Log.d(log, "onStart");
+        viewPagerFragments = new Vector<>(VIEW_PAGER_MAX_FRAGMENTS);
     }
 
     @Override
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
+        Log.d(log, "onRestoreInstanceState");
         SharedPreferences preferences = getSharedPreferences(PREFERENCES, MODE_PRIVATE);
-        String path = preferences.getString(prefImagePath, "zero");
-        geoPoint = new Gson().fromJson(preferences.getString(GEOPOINT,"zero"),GeoPoint.class);
-        if (path != "zero") {
-            fileUri = Uri.parse(path);
-            Glide.with(this).load(fileUri.getEncodedPath()).into(imageView);
-        }
-        ((TextView) findViewById(R.id.new_spot_cat_textView)).setText(preferences.getString(cat, ""));
-        ((EditText) findViewById(R.id.new_spot_notes_editText)).setText(preferences.getString(notes, ""));
+        geoPoint = new Gson().fromJson(preferences.getString(GEOPOINT, "zero"), GeoPoint.class);
+        ((TextView) findViewById(R.id.new_spot_cat_textView)).setText(preferences.getString(PREF_SPOT_TYPE, ""));
+        ((EditText) findViewById(R.id.new_spot_notes_editText)).setText(preferences.getString(PREF_NOTES, ""));
+        urlSet = preferences.getStringSet(URI_SET, new HashSet<String>());
+    }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Log.d(log, "onResume");
+        setViewPagerContent();
     }
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
+        Log.d(log, "onSaveInstanceState");
         SharedPreferences preferences = getSharedPreferences(PREFERENCES, MODE_PRIVATE);
         SharedPreferences.Editor editor = preferences.edit();
-        editor.putString(cat, ((TextView) findViewById(R.id.new_spot_cat_textView)).getText().toString().trim());
-        editor.putString(notes, ((EditText) findViewById(R.id.new_spot_notes_editText)).getText().toString().trim());
+        editor.putStringSet(URI_SET, urlSet);
+        editor.putString(PREF_SPOT_TYPE, ((TextView) findViewById(R.id.new_spot_cat_textView)).getText().toString().trim());
+        editor.putString(PREF_NOTES, ((EditText) findViewById(R.id.new_spot_notes_editText)).getText().toString().trim());
         editor.putString(GEOPOINT, new Gson().toJson(geoPoint));
-        if (fileUri != null) {
-            editor.putString(prefImagePath, fileUri.getEncodedPath());
-        } else {
-            editor.remove(prefImagePath);
-        }
         editor.apply();
     }
 
@@ -154,7 +175,6 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
 
         if (!mediaStorageDir.exists()) {
             if (!mediaStorageDir.mkdirs()) {
-                Log.d("MyCameraApp", "failed to create directory");
                 return null;
             }
         }
@@ -181,7 +201,11 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
                 onBackPressed();
                 return true;
             case R.id.action_create:
-                createDBEntry();
+                if ( urlSet.size()>0) {
+                    createDBEntry();
+                } else {
+                    Toast.makeText(this,getString(R.string.take_a_photo_message),Toast.LENGTH_SHORT).show();
+                }
             default:
                 return super.onOptionsItemSelected(item);
         }
@@ -194,10 +218,18 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
                 catDialog.show();
                 break;
             case R.id.new_spot_fab_photo:
-                fileUri = getOutputMediaFileUri();
-                Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                intent.putExtra(MediaStore.EXTRA_OUTPUT, fileUri);
-                startActivityForResult(intent, CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE);
+                Log.d(log,"onClick FAB");
+                if ( urlSet.size() < 3 ){
+                    Log.d(log, "adding new uri to list + starting camera");
+                    Uri uri = getOutputMediaFileUri();
+                    urlSet.add(uri.getEncodedPath());
+                    Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                    intent.putExtra(MediaStore.EXTRA_OUTPUT, uri);
+
+                    startActivityForResult(intent, CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE);
+                }else {
+                    Log.d(log, "list is full");
+                }
                 break;
         }
     }
@@ -246,9 +278,10 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
 
         String notes = ((EditText)findViewById(R.id.new_spot_notes_editText)).getText().toString().trim();
 
-        String uri = fileUri == null?null:fileUri.getEncodedPath();
+        List<String> urlList = new ArrayList<>();
+        urlList.addAll(urlSet);
 
-        spotRemote = new SpotRemote(googleId,"", geoPoint, notes, uri , new Date(),spotType);
+        final Spot spot = new Spot(googleId,"-1",geoPoint,notes,urlList,new Date(),spotType);
 
 
 
@@ -259,23 +292,20 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
                 Map<String,String> params = new Hashtable<String, String>();
 
                 //Adding parameters
-                params.put(KEY_GOOGLE_ID, spotRemote.getGoogleId());
-                params.put(KEY_GEO_POINT, spotRemote.getJSONGeoPoint());
-                params.put(KEY_SPOT_TYPE, spotRemote.getSpotType().toString());
-                params.put(KEY_NOTES , spotRemote.getNotes());
-                params.put(KEY_TIME, String.valueOf(spotRemote.getDate().getTime()));
+                params.put(KEY_GOOGLE_ID, spot.getGoogleId());
+                params.put(KEY_GEO_POINT, new Gson().toJson(spot.getGeoPoint()));
+                params.put(KEY_SPOT_TYPE, spot.getSpotType().toString());
+                params.put(KEY_NOTES , spot.getNotes());
+                params.put(KEY_TIME, String.valueOf(spot.getDate().getTime()));
 
                 //returning parameters
                 return params;
             }
         };
 
-        if (fileUri != null){
-            progressDialog = ProgressDialog.show(this,getString(R.string.creating_db_entry_message),getString(R.string.uploading),false,false);
-            Volley.newRequestQueue(this).add(stringRequest);
-        }else{
-            Toast.makeText(this,getString(R.string.take_a_photo_message),Toast.LENGTH_SHORT).show();
-        }
+        progressDialog = ProgressDialog.show(this,getString(R.string.creating_db_entry_message),getString(R.string.uploading),false,false);
+        Volley.newRequestQueue(this).add(stringRequest);
+
     }
 
 
@@ -283,7 +313,6 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
         /*
         * converts image to string
         * */
-
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         bmp.compress(Bitmap.CompressFormat.JPEG, 100, byteArrayOutputStream);
         byte[] imageBytes = byteArrayOutputStream.toByteArray();
@@ -297,16 +326,18 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
             @Override
             protected Map<String, String> getParams() throws AuthFailureError {
                 //Converting Bitmap to String
-                Bitmap bitmap = Utilities.decodeSampledBitmapFromResource(getResources(), spotRemote.getUri(), 600, 600);
-
-                String image = getStringImage(bitmap);
+                List<String> imageList = new ArrayList<>();
+                for (String url : spot.getUrlList()){
+                    Bitmap bitmap = Utilities.decodeSampledBitmapFromResource(getResources(), url, 400, 400);
+                    imageList.add(getStringImage(bitmap));
+                }
 
                 //Creating parameters
                 Map<String,String> params = new Hashtable<String, String>();
 
                 //Adding parameters
-                params.put(KEY_IMAGE, image);
-                params.put(KEY_ID, spotRemote.getId());
+                params.put(KEY_IMAGE_LIST, new Gson().toJson(imageList));
+                params.put(KEY_ID, spot.getId());
 
                 //returning parameters
                 return params;
@@ -325,7 +356,7 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
         //Dismissing the progress dialog
         progressDialog.dismiss();
 
-        Log.d(log,error.getMessage());
+        Log.d(log, error.getMessage());
         //Showing toast
         //Toast.makeText(this, error.getMessage().toString(), Toast.LENGTH_LONG).show();
     }
@@ -343,7 +374,7 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
             switch (jsonObject.getString("action")){
                 case PHP_ACTION_CREATE_SPOT:
                     if (success){
-                        spotRemote.setId(rowId);
+                        spot.setId(rowId);
                         progressDialog.setTitle(getString(R.string.image_upload_started));
                         progressDialog.setMessage(getString(R.string.uploading));
                         progressDialog.show();
@@ -367,7 +398,25 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
         }
         //Toast.makeText(this, response , Toast.LENGTH_LONG).show();
 
-        //uploadImage(spotRemote);
+        //uploadImage(spot);
+    }
+
+    private void setViewPagerContent() {
+        Log.d(log, "setViewPagerContent");
+        List<String> imgURLList = new ArrayList<>();
+        imgURLList.addAll(urlSet);
+        for ( String url : imgURLList ){
+            Bundle page = new Bundle();
+            page.putString(IMG_URL, url);
+            Log.d(log,"adding fragment for img: " + url);
+            viewPagerFragments.add(Fragment.instantiate(this, GalleryItemFragment.class.getName(), page));
+        }
+
+        //after adding all the fragments write the below lines
+
+        PagerAdapter mPagerAdapter = new ScreenSlidePagerAdapter(getSupportFragmentManager(), viewPagerFragments);
+
+        mPager.setAdapter(mPagerAdapter);
     }
 }
 

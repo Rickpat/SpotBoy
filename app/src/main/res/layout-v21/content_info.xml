@@ -5,54 +5,48 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
-
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical">
 
 
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="@dimen/info_card_maxImgHeight"
-        android:layout_marginTop="@dimen/default_toolbar_height">
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/info_card_maxImgHeight"
+            android:layout_marginTop="@dimen/default_toolbar_height">
+            <android.support.v4.view.ViewPager xmlns:android="http://schemas.android.com/apk/res/android"
+                android:id="@+id/info_viewPager"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+            </android.support.v4.view.ViewPager>
 
-        <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:id="@+id/info_imageView"
-            android:layout_gravity="center"
-            android:background="@drawable/ic_spotboylogo"
-            android:maxWidth="@dimen/info_card_image_maxWidth" />
-    </FrameLayout>
+        </FrameLayout>
 
-    <android.support.v7.widget.CardView
-        android:layout_width="@dimen/info_cardView_width"
-        android:layout_height="wrap_content"
-        android:id="@+id/info_catCardView"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginTop="@dimen/info_card_margin_topBottom"
-        android:layout_marginBottom="@dimen/info_card_margin_topBottom">
-        <me.grantland.widget.AutofitTextView
-            android:layout_width="wrap_content"
+        <android.support.v7.widget.CardView
+            android:layout_width="@dimen/info_cardView_width"
             android:layout_height="wrap_content"
-            android:textAppearance="?android:attr/textAppearanceSmall"
-            android:id="@+id/info_spotTypeTextView"
-            android:paddingLeft="@dimen/default_text_padding_left_right"
-            android:text="@string/xxx"
-            android:layout_alignParentTop="true"
-            android:layout_toEndOf="@+id/new_spot_lat_label"
-            android:layout_toRightOf="@+id/new_spot_lat_label"
-            android:paddingRight="@dimen/default_text_padding_left_right"
-            android:paddingTop="@dimen/default_text_padding_below_above"
-            android:paddingBottom="@dimen/default_text_padding_below_above"
-            android:textSize="@dimen/default_text_size"
-            android:inputType="number"
-            android:maxLength="10" />
-    </android.support.v7.widget.CardView>
+            android:id="@+id/info_catCardView"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="@dimen/info_card_margin_topBottom"
+            android:layout_marginBottom="@dimen/info_card_margin_topBottom">
+            <me.grantland.widget.AutofitTextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceSmall"
+                android:id="@+id/info_catTextView"
+                android:paddingLeft="@dimen/default_text_padding_left_right"
+                android:text="@string/xxx"
+                android:layout_alignParentTop="true"
+                android:layout_toEndOf="@+id/new_spot_lat_label"
+                android:layout_toRightOf="@+id/new_spot_lat_label"
+                android:paddingRight="@dimen/default_text_padding_left_right"
+                android:paddingTop="@dimen/default_text_padding_below_above"
+                android:paddingBottom="@dimen/default_text_padding_below_above"
+                android:textSize="@dimen/default_text_size"
+                android:inputType="number"
+                android:maxLength="10" />
+        </android.support.v7.widget.CardView>
 
 
         <android.support.v7.widget.CardView
@@ -106,8 +100,6 @@
 
 
     </LinearLayout>
-
-    </ScrollView>
 
     <android.support.design.widget.FloatingActionButton
         android:id="@+id/info_cat_fab_edit"

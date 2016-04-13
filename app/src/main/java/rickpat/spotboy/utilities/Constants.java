@@ -20,6 +20,14 @@ public class Constants {
     public static final int HUB_SHOW_ON_MAP = 402;
     public static final int HUB_MODIFIED_DATASET = 403;
 
+    public static final int KML_ACTIVITY_REQUEST = 501;
+    public static final int KML_ACTIVITY_RESULT_LOAD = 502;
+    public static final int KML_ACTIVITY_RESULT_CREATE = 503;
+    public static final int KML_ACTIVITY_RESULT_REMOVE = 504;
+
+    public static final int KML_LOAD_ACTIVITY_REQUEST = 601;
+    public static final int KML_LOAD_ACTIVITY_RESULT = 602;
+
     public static final String GOOGLE_NAME ="GOOGLE_NAME";
     public static final String GOOGLE_ID = "GOOGLE_ID";
 
@@ -36,8 +44,17 @@ public class Constants {
     public static final String TIME_FORMAT = "HH:mm";
 
 
+    public static final String KML_URL = "KML_URL";
+    public static final String KML_FILE = "KML_FILE";
+
+    public static final String URI_SET ="URI_SET";
+
+    public static final String IMG_URL = "IMG_URL";
+
+
     public static final String PHP_ACTION_CREATE_SPOT ="CREATE_SPOT";
     public static final String PHP_ACTION_IMAGE_UPLOAD ="IMAGE_UPLOAD";
 
+    public static final int VIEW_PAGER_MAX_FRAGMENTS = 3;
 
 }

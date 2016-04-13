@@ -26,19 +26,19 @@ import java.util.List;
 
 import rickpat.spotboy.R;
 import rickpat.spotboy.online_activities.Online_InfoActivity;
-import rickpat.spotboy.spotspecific.SpotRemote;
-import rickpat.spotboy.utilities.Online_SpotHubAdapter;
+import rickpat.spotboy.spotspecific.Spot;
 import rickpat.spotboy.utilities.SpotBoy_Server_URIs;
+import rickpat.spotboy.utilities.SpotHubAdapter;
 import rickpat.spotboy.utilities.Utilities;
 
 import static rickpat.spotboy.utilities.Constants.*;
 
-public class HubMainFragment extends Fragment implements Online_SpotHubAdapter.IHubAdapter, Response.ErrorListener, Response.Listener<JSONObject>{
+public class HubMainFragment extends Fragment implements SpotHubAdapter.IHubAdapter, Response.ErrorListener, Response.Listener<JSONObject>{
 
     protected RecyclerView mRecyclerView;
-    protected Online_SpotHubAdapter mAdapter;
+    protected SpotHubAdapter mAdapter;
     protected RecyclerView.LayoutManager mLayoutManager;
-    protected List<SpotRemote> spotList;
+    protected List<Spot> spotList;
     private String log = "HUB_MAIN_FRAGMENT";
 
     @Override
@@ -56,7 +56,7 @@ public class HubMainFragment extends Fragment implements Online_SpotHubAdapter.I
 
         mLayoutManager = new LinearLayoutManager(this.getContext());
 
-        mAdapter = new Online_SpotHubAdapter(spotList,this);
+        mAdapter = new SpotHubAdapter(spotList,this.getActivity());
 
 
         mRecyclerView.setLayoutManager(mLayoutManager);
@@ -78,7 +78,7 @@ public class HubMainFragment extends Fragment implements Online_SpotHubAdapter.I
     }
 
     @Override
-    public void moreButtonCallback(SpotRemote spot) {
+    public void moreButtonCallback(Spot spot) {
         Log.d(log, "moreButtonCallback");
 
         String googleName = ((IHub)getActivity()).getUserGoogleName();
@@ -94,7 +94,7 @@ public class HubMainFragment extends Fragment implements Online_SpotHubAdapter.I
 
 
     @Override
-    public void markerButtonCallback(SpotRemote spot) {
+    public void markerButtonCallback(Spot spot) {
         Log.d(log, "markerButtonCallback");
         Intent showMarkerIntent = new Intent();
         showMarkerIntent.putExtra(SPOT, new Gson().toJson(spot));

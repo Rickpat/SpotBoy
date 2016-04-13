@@ -25,14 +25,14 @@ import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.gson.Gson;
 
-import rickpat.spotboy.AboutActivity;
+import rickpat.spotboy.activities.AboutActivity;
 import rickpat.spotboy.R;
 import rickpat.spotboy.enums.SpotType;
 import rickpat.spotboy.osmspecific.MyLocationOverlay;
+import rickpat.spotboy.osmspecific.Offline_SpotInfoWindow;
+import rickpat.spotboy.osmspecific.Online_SpotInfoWindow;
 import rickpat.spotboy.osmspecific.SpotCluster;
 import rickpat.spotboy.spotspecific.Spot;
-import rickpat.spotboy.spotspecific.SpotRemote;
-import rickpat.spotboy.spotspecific.SpotInfoWindow;
 import rickpat.spotboy.spotspecific.SpotMarker;
 import rickpat.spotboy.utilities.SpotBoy_Server_URIs;
 import rickpat.spotboy.utilities.Utilities;
@@ -54,7 +54,7 @@ import java.util.List;
 import static rickpat.spotboy.utilities.Constants.*;
 
 public class Online_MainActivity extends AppCompatActivity implements MapEventsReceiver, View.OnClickListener,
-        MyLocationOverlay.IMyLocationCallback, View.OnLongClickListener, SpotInfoWindow.InfoCallback, Response.ErrorListener, Response.Listener<JSONObject> {
+        MyLocationOverlay.IMyLocationCallback, View.OnLongClickListener, Offline_SpotInfoWindow.InfoCallback, Response.ErrorListener, Response.Listener<JSONObject> {
 
     private String log ="Online_MainActivity";
     private MyLocationOverlay myLocationOverlay;
@@ -68,7 +68,7 @@ public class Online_MainActivity extends AppCompatActivity implements MapEventsR
     private String googleName;
 
     //takes all spots
-    private List<SpotRemote> spotList;
+    private List<Spot> spotList;
     private HashMap<SpotType, SpotCluster> spotClusterHashMap;
 
 
@@ -228,7 +228,7 @@ public class Online_MainActivity extends AppCompatActivity implements MapEventsR
             // show spot on map result
             Bundle bundle = data.getExtras();
             if (bundle.containsKey(SPOT)){
-                SpotRemote remote = new Gson().fromJson(bundle.getString(SPOT),SpotRemote.class);
+                Spot remote = new Gson().fromJson(bundle.getString(SPOT),Spot.class);
                 map.getController().animateTo(remote.getGeoPoint());
             }
         }
@@ -415,13 +415,12 @@ public class Online_MainActivity extends AppCompatActivity implements MapEventsR
             spotCluster.setIcon(Utilities.getClusterIcon(getApplicationContext(), spotType));
             spotClusterHashMap.put(spotType, spotCluster);
         }
-        for (SpotRemote localSpot : spotList){
-            //Log.d(log, "SpotRemote id: " + remote.getId() + " type: " + remote.getSpotType());
+        for (Spot localSpot : spotList){
+            //Log.d(log, "Spot id: " + remote.getId() + " type: " + remote.getSpotType());
             SpotMarker spotMarker = new SpotMarker(map, localSpot);
             spotMarker.setIcon(Utilities.getMarkerIcon(getApplicationContext(), localSpot.getSpotType()));
             spotMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-            SpotInfoWindow infoWindow = new SpotInfoWindow(R.layout.info_window,map,this);
-            infoWindow.setIsRemoteSpot(true);
+            Online_SpotInfoWindow infoWindow = new Online_SpotInfoWindow(R.layout.info_window,map,this);
             spotMarker.setInfoWindow(infoWindow);
             spotClusterHashMap.get(localSpot.getSpotType()).add(spotMarker);
         }

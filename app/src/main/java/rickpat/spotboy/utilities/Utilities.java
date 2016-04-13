@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
 import android.graphics.Point;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
@@ -22,7 +23,7 @@ import org.osmdroid.util.GeoPoint;
 import rickpat.spotboy.enums.Library;
 import rickpat.spotboy.enums.SpotType;
 import rickpat.spotboy.R;
-import rickpat.spotboy.spotspecific.SpotRemote;
+import rickpat.spotboy.spotspecific.Spot;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -167,8 +168,8 @@ public class Utilities {
         return null;
     }
 
-    public static List<SpotRemote> createSpotListFromJSONResult( JSONObject rawJson ){
-        List<SpotRemote> remoteList = new ArrayList<>();
+    public static List<Spot> createSpotListFromJSONResult( JSONObject rawJson ){
+        List<Spot> remoteList = new ArrayList<>();
         try {
             JSONArray jsonArray = rawJson.getJSONArray("spots");
             Log.d(log, "spot json array elements: " + jsonArray.length());
@@ -176,22 +177,43 @@ public class Utilities {
                 JSONObject jsonSpot = jsonArray.getJSONObject(i);
                 String id = jsonSpot.getString("id");
                 String googleId = jsonSpot.getString("googleId");
-                GeoPoint geoPoint = new Gson().fromJson(jsonSpot.getString("geoPoint"),GeoPoint.class);
+                GeoPoint geoPoint = new Gson().fromJson(jsonSpot.getString("geoPoint"), GeoPoint.class);
                 SpotType spotType = parseSpotTypeString(jsonSpot.getString("spotType"));
                 String notes = jsonSpot.getString("notes");
-                String imgURL = "";
+
+                //todo recreate img url list
+                /*
                 if (jsonSpot.has("imgURL")) {
                     imgURL = jsonSpot.getString("imgURL");
                 }
+                */
+
                 String creationTime = jsonSpot.getString("creationTime");
                 Date date = new Date(Long.parseLong(creationTime));
 
-                remoteList.add(new SpotRemote(googleId,id,geoPoint,notes,imgURL,date, spotType));
+                remoteList.add(new Spot(googleId,id,geoPoint,notes,new ArrayList<String>(),date,spotType));
                 Log.d(log,"spot " + i + " googleId: " + googleId);
             }
         } catch (JSONException e) {
             e.printStackTrace();
         }
         return remoteList;
+    }
+
+    public static Bitmap getResizedBitmap(Bitmap bm, int newWidth, int newHeight) {
+        int width = bm.getWidth();
+        int height = bm.getHeight();
+        float scaleWidth = ((float) newWidth) / width;
+        float scaleHeight = ((float) newHeight) / height;
+        // CREATE A MATRIX FOR THE MANIPULATION
+        Matrix matrix = new Matrix();
+        // RESIZE THE BIT MAP
+        matrix.postScale(scaleWidth, scaleHeight);
+
+        // "RECREATE" THE NEW BITMAP
+        Bitmap resizedBitmap = Bitmap.createBitmap(
+                bm, 0, 0, width, height, matrix, false);
+        bm.recycle();
+        return resizedBitmap;
     }
 }

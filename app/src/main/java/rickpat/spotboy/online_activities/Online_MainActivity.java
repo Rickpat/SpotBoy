@@ -3,20 +3,17 @@ package rickpat.spotboy.online_activities;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.location.Location;
 import android.os.Bundle;
-import android.provider.Settings;
+import android.support.design.widget.CoordinatorLayout;
 import android.support.design.widget.FloatingActionButton;
-import android.support.v4.content.ContextCompat;
+import android.support.design.widget.Snackbar;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Toast;
 
 import com.android.volley.Request;
 import com.android.volley.Response;
@@ -27,19 +24,20 @@ import com.google.gson.Gson;
 
 import rickpat.spotboy.activities.AboutActivity;
 import rickpat.spotboy.R;
+import rickpat.spotboy.activities.KMLActivity;
 import rickpat.spotboy.enums.SpotType;
-import rickpat.spotboy.osmspecific.MyLocationOverlay;
+import rickpat.spotboy.osmspecific.MyPositionOverlay;
 import rickpat.spotboy.osmspecific.Offline_SpotInfoWindow;
 import rickpat.spotboy.osmspecific.Online_SpotInfoWindow;
 import rickpat.spotboy.osmspecific.SpotCluster;
 import rickpat.spotboy.spotspecific.Spot;
 import rickpat.spotboy.spotspecific.SpotMarker;
-import rickpat.spotboy.utilities.SpotBoy_Server_URIs;
 import rickpat.spotboy.utilities.Utilities;
+import rickpat.spotboy.utilities.VolleyResponseParser;
 
-import org.json.JSONException;
 import org.json.JSONObject;
-import org.osmdroid.api.IMapController;
+import org.osmdroid.bonuspack.kml.KmlDocument;
+import org.osmdroid.bonuspack.overlays.FolderOverlay;
 import org.osmdroid.bonuspack.overlays.MapEventsOverlay;
 import org.osmdroid.bonuspack.overlays.MapEventsReceiver;
 import org.osmdroid.bonuspack.overlays.Marker;
@@ -47,455 +45,445 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
 import static rickpat.spotboy.utilities.Constants.*;
+import static rickpat.spotboy.utilities.SpotBoy_Server_Constants.PHP_GET_ALL_SPOTS;
 
-public class Online_MainActivity extends AppCompatActivity implements MapEventsReceiver, View.OnClickListener,
-        MyLocationOverlay.IMyLocationCallback, View.OnLongClickListener, Offline_SpotInfoWindow.InfoCallback, Response.ErrorListener, Response.Listener<JSONObject> {
+public class Online_MainActivity extends AppCompatActivity implements MapEventsReceiver, Online_SpotInfoWindow.InfoCallback, Response.ErrorListener, Response.Listener<JSONObject> {
 
-    private String log ="Online_MainActivity";
-    private MyLocationOverlay myLocationOverlay;
-    private MapView map;
-    private Location cachedLastFix;
-    private AlertDialog spotLayerDialog;
-    private AlertDialog cachedGPSDialog;
-    private AlertDialog activateGPSDialog;
+    private String log = "MainActivity_LOG";
+    private MyPositionOverlay myPositionOverlay;            //shows the users position
+    private MapView map;                                    //manages the map
+    private AlertDialog markerDialog;                       //to select the spot layer
+    private AlertDialog newMarkerDialog;                    //pops up by long press on map.
+    private HashMap<SpotType,SpotCluster> clusterHashMap;   //links spot type to SpotCluster
+    private File kmlFile;                                   //a kml file. its default -> null
+    private FolderOverlay kmlOverlay;                       //KML layer
+    private String googleId;                                //users google id. nothing else needed
 
-    private String googleId;
-    private String googleName;
-
-    //takes all spots
-    private List<Spot> spotList;
-    private HashMap<SpotType, SpotCluster> spotClusterHashMap;
-
-
-    //todo save and restore layer selection
-
-    @Override   //After onStart... but not on first start
-    protected void onRestoreInstanceState(Bundle savedInstanceState) {
-        super.onRestoreInstanceState(savedInstanceState);
-        SharedPreferences preferences = getSharedPreferences(PREFERENCES, MODE_PRIVATE);
-        if(preferences.contains(CACHED_LAST_FIX)){
-            cachedLastFix = new Gson().fromJson(preferences.getString(CACHED_LAST_FIX,""),Location.class);
-        }
-        map.getController().setCenter(new Gson().fromJson(preferences.getString(CACHED_MAP_CAMERA_GEOPOINT, ""), GeoPoint.class));
-        map.getController().setZoom(preferences.getInt(CACHED_MAP_CAMERA_ZOOM, 15));
-
-        googleId = preferences.getString(GOOGLE_ID,null);
-        googleName = preferences.getString(GOOGLE_NAME,null);
-        if (googleName == null || googleId == null){
-            finish();
-        }
-
-        Log.d(log, "onRestoreInstanceState");
-    }
-
-    @Override   //After onPause
+    /*
+    * saves states
+    * */
+    @Override   //after onPause
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         Log.d(log, "onSaveInstanceState");
         SharedPreferences preferences = getSharedPreferences(PREFERENCES, MODE_PRIVATE);
         SharedPreferences.Editor editor = preferences.edit();
-        if ( myLocationOverlay.getLastFix() != null ){
-            editor.putString(CACHED_LAST_FIX, new Gson().toJson(myLocationOverlay.getLastFix()));
+        if ( kmlFile != null ) {
+            editor.putString(KML_FILE, new Gson().toJson(kmlFile));
+        } else {
+            if (preferences.contains(KML_FILE)){
+                editor.remove(KML_FILE);
+            }
         }
-        editor.putString(CACHED_MAP_CAMERA_GEOPOINT, new Gson().toJson(map.getMapCenter()));
-        editor.putInt(CACHED_MAP_CAMERA_ZOOM, map.getZoomLevel());
-
         editor.putString(GOOGLE_ID,googleId);
-        editor.putString(GOOGLE_NAME,googleName);
-
+        editor.putString(GEOPOINT, new Gson().toJson(map.getMapCenter()));
+        editor.putInt(ZOOM_LEVEL, map.getZoomLevel());
         editor.apply();
     }
 
-    @Override   //After onCreate
-    protected void onStart() {
-        super.onStart();
-        Log.d(log, "onStart");
-        myLocationOverlay.enableMyLocation();
-        loadSpots();
-
-        int off = 0;
-        try {
-            off = Settings.Secure.getInt(getContentResolver(), Settings.Secure.LOCATION_MODE);
-            if(off==0){
-                activateGPSDialog.show();
-            }
-        } catch (Settings.SettingNotFoundException e) {
-            e.printStackTrace();
-        }
-    }
-
-    @Override
+    /*
+    * called if user leaves the activity
+    * removes all layer from map to avoid redundancies and turns off GPS
+    * */
+    @Override   //called by action
     protected void onPause() {
         super.onPause();
         Log.d(log, "onPause");
-        myLocationOverlay.disableMyLocation();
-        //todo remove //
-        //removeAllClusters();
+        closeAllInfoWindows();
+        myPositionOverlay.disableMyLocation();
+        removeAllClusters();
+        removeKMLOverlay();
     }
 
-    @Override   //After onRestoreInstanceState
-    public boolean onCreateOptionsMenu(Menu menu) {
-        MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.menu_main, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle item selection
-        switch (item.getItemId()) {
-            case R.id.action_settings:
-                break;
-            case R.id.action_about:
-                Intent aboutIntent = new Intent(this, AboutActivity.class);
-                /*
-                * about activity don't care about online or offline mode
-                * */
-                startActivity(aboutIntent);
-                break;
-            case R.id.action_hub:
-                Intent hubIntent = new Intent(this,Online_HubActivity.class);
-                hubIntent.putExtra(GOOGLE_NAME,googleName);
-                hubIntent.putExtra(GOOGLE_ID,googleId);
-                startActivityForResult(hubIntent, HUB_REQUEST);
-                break;
-            case R.id.action_new:
-                Intent newIntent = new Intent(this,Online_NewActivity.class);
-                Location loc;
-                if ( myLocationOverlay.getLastFix() != null ){
-                    loc = myLocationOverlay.getLastFix();
-                }else if(  cachedLastFix != null ){
-                    /*
-                    * the app caches received gps data so that users don't have to wait for fresh
-                    * data after screen rotation.
-                    * if the user wants to save a new spot but app hasn't received a gps signal yet
-                    * but got cached data, it will ask if it's ok to use the cached file from
-                    * preferences to save the spot.
-                    * */
-                    cachedGPSDialog.show();
-                    break;
-                }else{
-                    Toast.makeText(this,getString(R.string.gps_not_ready_message), Toast.LENGTH_SHORT).show();
-                    break;
-                }
-
-                newIntent.putExtra(GEOPOINT,new Gson().toJson(new GeoPoint(loc)));
-                newIntent.putExtra(GOOGLE_NAME,googleName);
-                newIntent.putExtra(GOOGLE_ID,googleId);
-                startActivityForResult(newIntent, NEW_SPOT_REQUEST);
-                break;
-        }
-        return super.onOptionsItemSelected(item);
-    }
-
-    @Override
+    @Override   //first call
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Log.d(log, "onCreate");
         setContentView(R.layout.activity_main);
-        Toolbar mToolbar = (Toolbar) findViewById(R.id.main_toolbar);
-        setSupportActionBar(mToolbar);
-
+        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar_main);
+        setSupportActionBar(toolbar);
         Bundle bundle = getIntent().getExtras();
-
-        if (bundle.containsKey(GOOGLE_ID) && bundle.containsKey(GOOGLE_NAME)){
+        if ( bundle.containsKey(GOOGLE_ID) ){
             googleId = bundle.getString(GOOGLE_ID);
-            googleName = bundle.getString(GOOGLE_NAME);
-            Log.d(log , "googleId: " + googleId + " googleName: " + googleName);
-        }else{
-            finish();
+            Log.d(log,googleId);
         }
-
-        spotList = new ArrayList<>();
-
-        loadSpots();
-        initMap();
+        clusterHashMap = new HashMap<>();
+        setMap();
+        setMarkerDialog();
         setFloatingActionButton();
-        createAlertDialogs();
-        //next -> onStart
+        //next onStart
+    }
+
+    @Override   //after onCreate
+    protected void onStart() {
+        super.onStart();
+        Log.d(log, "onStart");
+        // next onRestoreInstanceState after e.g. screen orientation changed
+        // otherwise onResume
     }
 
 
+    /*
+    * restores states and files
+    * */
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        Log.d(log, "onRestoreInstanceState");
+        SharedPreferences preferences = getSharedPreferences(PREFERENCES, MODE_PRIVATE);
+        googleId = preferences.getString(GOOGLE_ID,"-1");
+        if (preferences.contains(KML_FILE)){
+            kmlFile = new Gson().fromJson(preferences.getString(KML_FILE,""),File.class);
+        }
+        map.getController().setCenter(new Gson().fromJson(preferences.getString(GEOPOINT, ""), GeoPoint.class));
+        map.getController().setZoom(preferences.getInt(ZOOM_LEVEL, 18));
+        //next onResume()
+    }
+
+    /*
+    * activates GPS
+    * creates overlays / layers
+    * */
+    @Override   //after onStart or onRestoreInstanceState
+    protected void onResume() {
+        super.onResume();
+        Log.d(log, "onResume");
+        myPositionOverlay.enableMyLocation();
+        loadSpotsFromDatabase();
+        createKMLOverlay();
+        //now activity is running till onPause
+    }
+
+    /*
+    * called when user returns from a started activity like
+     * - NewActivity
+     * - HubActivity
+     * - InfoActivity
+     * - AboutActivity      // not necessary
+     * - SettingsActivity   //todo
+    * */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-
-        if ( requestCode == HUB_REQUEST && resultCode == HUB_SHOW_ON_MAP){
-            // show spot on map result
-            Bundle bundle = data.getExtras();
-            if (bundle.containsKey(SPOT)){
-                Spot remote = new Gson().fromJson(bundle.getString(SPOT),Spot.class);
-                map.getController().animateTo(remote.getGeoPoint());
-            }
-        }
-        if ( requestCode == INFO_ACTIVITY_REQUEST ){
-            switch (resultCode){
-                case INFO_ACTIVITY_SPOT_DELETED:
-                    Log.d(log,"spot deleted");
-                    Toast.makeText(this, getString(R.string.spot_deleted_message),Toast.LENGTH_SHORT).show();
-                    loadSpots();
-                    break;
-                case INFO_ACTIVITY_SPOT_MODIFIED:
-                    Log.d(log,"spot modified...refreshing spotList");
-                    //Toast.makeText(this,getString(R.string.refreshing),Toast.LENGTH_SHORT).show();
-                    loadSpots();
-                    break;
-            }
-        }
+        Log.d(log, "onActivityResult");
 
         if ( requestCode == HUB_REQUEST ){
-            Log.d(log,"back from hub");
             switch (resultCode){
+                case HUB_SHOW_ON_MAP:
+                    Bundle bundle = data.getExtras();
+                    if (bundle.containsKey(SPOT)){
+                        Spot spot = new Gson().fromJson(bundle.getString(SPOT),Spot.class);
+                        Log.d(log,"received spot with id: " + spot.getId());
+                        map.getController().animateTo(spot.getGeoPoint());
+                    }
+                    break;
                 case HUB_MODIFIED_DATASET:
-                    Log.d(log,"hub:modified data set...");
-                    loadSpots();
+                    //todo test
                     break;
             }
         }
 
-        if ( requestCode == NEW_SPOT_REQUEST && resultCode == NEW_SPOT_CREATED){
-            loadSpots();
+        if ( requestCode == INFO_ACTIVITY_REQUEST){
+            switch (resultCode){
+                case INFO_ACTIVITY_SPOT_MODIFIED:
+                    Log.d(log,"spot modified");
+                    break;
+                case INFO_ACTIVITY_SPOT_DELETED:
+                    Log.d(log,"spot deleted");
+            }
+        }
+
+        if ( requestCode == KML_REQUEST ){
+            switch (resultCode){
+                case KML_RESULT_LOAD:
+                    Log.d(log,"KML_LOAD");
+                    Bundle bundle = data.getExtras();
+                    if (bundle != null){
+                        if (bundle.containsKey(KML_FILE)){
+                            kmlFile = new Gson().fromJson(bundle.getString(KML_FILE,""),File.class);
+                            Log.d(log,kmlFile.getName() + " parsed to KmlDocument");
+                        }
+                    }
+                    break;
+                case KML_RESULT_REMOVE:
+                    Log.d(log,"KML_REMOVE");
+                    removeKMLOverlay();
+                    kmlFile = null;
+                    break;
+            }
         }
     }
 
-    //------------------------------------------------
-
-    private void createAlertDialogs() {
+    private void setMarkerDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         final String[] items = Utilities.getSpotTypes();
+        //todo save and restore selection
         boolean[] selectedItems = new boolean[items.length];
         for (int i = 0 ; i < selectedItems.length ; i++){
             selectedItems[i] = true;
         }
-
-        //todo fix selection after screen rotation
-        spotLayerDialog = builder
+        markerDialog = builder
                 .setMultiChoiceItems(items, selectedItems, new DialogInterface.OnMultiChoiceClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int indexSelected, boolean isChecked) {
                         SpotType spotTypeSelection = Utilities.parseSpotTypeString(items[indexSelected]);
                         if (isChecked) {
-                            Log.d(log, "checked item id: " + indexSelected + " value: " + items[indexSelected]);
-                            addCluster(spotTypeSelection);
+                            Log.d(log,"checked item id: " + indexSelected + " value: " + items[indexSelected]);
+                            addCluster( spotTypeSelection );
                         } else {
-                            removeCluster(spotTypeSelection);
+                            removeCluster( spotTypeSelection );
                         }
                     }
                 }).setNegativeButton(getString(R.string.cancel), new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int id) {
-                        //markerDialog.cancel();
-                    }
-                }).create();
-
-        AlertDialog.Builder cachedGPSDialogBuilder = new AlertDialog.Builder(this);
-        cachedGPSDialog = cachedGPSDialogBuilder
-                .setTitle(getString(R.string.use_cached_gps_question))
-                .setNegativeButton(getText(R.string.cancel), new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        cachedGPSDialog.dismiss();
-                    }
-                })
-                .setPositiveButton(getText(R.string.ok), new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        Intent newIntent = new Intent(Online_MainActivity.this, Online_NewActivity.class);
-                        newIntent.putExtra(GOOGLE_NAME,googleName);
-                        newIntent.putExtra(GOOGLE_ID,googleId);
-
-                        if (myLocationOverlay.getLastFix() != null) {
-                            // if the the device has received a signal in the meanwhile
-                            newIntent.putExtra(GEOPOINT, new Gson().toJson(new GeoPoint(myLocationOverlay.getLastFix())));
-                            startActivityForResult(newIntent, NEW_SPOT_REQUEST);
-                        }else if ( cachedLastFix != null ) {
-                            // otherwise...use cached data
-                            newIntent.putExtra(GEOPOINT, new Gson().toJson(new GeoPoint(cachedLastFix)));
-                            startActivityForResult(newIntent, NEW_SPOT_REQUEST);
-                        }
-                    }
-                })
-                .create();
-
-        AlertDialog.Builder activateGPSDialogBuilder = new AlertDialog.Builder(this);
-        activateGPSDialog = activateGPSDialogBuilder.setTitle(getString(R.string.activate_gps_dialog_question))
-                .setNegativeButton(getText(R.string.cancel), new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        activateGPSDialog.dismiss();
-                    }
-                })
-                .setPositiveButton(getText(R.string.ok), new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        Intent onGPS = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                        startActivity(onGPS);
+                        markerDialog.cancel();
                     }
                 }).create();
     }
 
-    private void setFloatingActionButton() {
-        FloatingActionButton fab = (FloatingActionButton)findViewById(R.id.main_fab);
-        fab.setOnClickListener(this);
-        fab.setOnLongClickListener(this);
-    }
-
-    @Override
-    public void onClick(View v) {
-        switch (v.getId()){
-            case R.id.main_fab:
-                Log.d(log, "ontouch fab");
-                if (myLocationOverlay.getMyLocation() != null){
-                    map.getController().animateTo(myLocationOverlay.getMyLocation());
-                }
-                break;
+    /*
+    * removes a SpotCluster from map by given SpotType
+    * */
+    private void removeCluster(SpotType spotTypeSelection) {
+        if( map.getOverlays().contains(clusterHashMap.get(spotTypeSelection)) ){
+            map.getOverlays().remove(clusterHashMap.get(spotTypeSelection));
+            map.invalidate();
         }
     }
 
-    @Override
-    public boolean onLongClick(View v) {
-        if (v.getId() == R.id.main_fab){
-            spotLayerDialog.show();
+    /*
+    * adds a SpotCluster to map by given SpotType
+    * */
+    private void addCluster(SpotType spotTypeSelection) {
+        if (!map.getOverlays().contains(clusterHashMap.get(spotTypeSelection))){
+            map.getOverlays().add(clusterHashMap.get(spotTypeSelection));
+            map.invalidate();
         }
-        return false;
     }
 
-    private void initMap() {
-        map = (MapView) findViewById(R.id.main_map);
-        map.setTileSource(TileSourceFactory.MAPNIK);
-        map.setMultiTouchControls(true);
-
-        final IMapController mapController = map.getController();
-        mapController.setZoom(4);
-        GeoPoint startPoint = new GeoPoint(48.2205994,16.2396321);
-        mapController.setCenter(startPoint);
-        MapEventsOverlay mapEventsOverlay = new MapEventsOverlay(this, this);
-        myLocationOverlay = new MyLocationOverlay(this, map);
-        myLocationOverlay.enableMyLocation();
-
-        map.getOverlays().add(mapEventsOverlay);
-        map.getOverlays().add(myLocationOverlay);
-        map.invalidate();
+    /*
+    * removes all SpotClusters from map
+    * */
+    private void removeAllClusters(){
+        for (SpotCluster spotCluster : clusterHashMap.values()){
+            map.getOverlays().remove(spotCluster);
+        }
+        clusterHashMap.clear();
     }
 
-    @Override
-    public void setFixedLocationIcon() {
-        ((FloatingActionButton)findViewById(R.id.main_fab))
-                .setImageDrawable(ContextCompat.getDrawable(getApplicationContext(), R.drawable.ic_gps_fixed_white_24dp));
-    }
-
-    //--CLUSTER
-
-    private void loadSpots() {
-        loadRemoteSpots();
-    }
-
-    private void loadRemoteSpots() {
-        Log.d(log,"loading spots from serves...");
-        String uri = SpotBoy_Server_URIs.PHP_GET_ALL_SPOTS;
-        JsonObjectRequest request = new JsonObjectRequest( Request.Method.GET, uri, null,this,this);
-        Volley.newRequestQueue(this).add(request);
-    }
-
-    private void createSpotCluster() {
-        Log.d(log, "createSpotCluster");
-        createRemoteSpotClusters();
-    }
-
-    private void createRemoteSpotClusters() {
-        Log.d(log, "createRemoteSpotClusters");
-        spotClusterHashMap = new HashMap<>();
+    /*
+    * called by Volley result
+    * creates all SpotMarkers and SpotClusters and adds them to map
+    * */
+    private void createAllClusters( List<Spot> spotList) {
+        if ( spotList.size() > 0 ){
+            map.getController().animateTo(spotList.get(spotList.size()-1).getGeoPoint());
+        }
+        clusterHashMap = new HashMap<>();
         for (SpotType spotType : SpotType.values()){
             SpotCluster spotCluster = new SpotCluster(this);
-            spotCluster.setName(spotType.toString());
+            spotCluster.setName(spotType + "Cluster");
             spotCluster.setIcon(Utilities.getClusterIcon(getApplicationContext(), spotType));
-            spotClusterHashMap.put(spotType, spotCluster);
+            clusterHashMap.put(spotType, spotCluster);
         }
-        for (Spot localSpot : spotList){
-            //Log.d(log, "Spot id: " + remote.getId() + " type: " + remote.getSpotType());
-            SpotMarker spotMarker = new SpotMarker(map, localSpot);
-            spotMarker.setIcon(Utilities.getMarkerIcon(getApplicationContext(), localSpot.getSpotType()));
+        for (Spot spot : spotList){
+            Log.d(log, "Spot id: " + spot.getId() + " type: " + spot.getSpotType());
+            SpotMarker spotMarker = new SpotMarker(map, spot);
+            spotMarker.setIcon(Utilities.getMarkerIcon(getApplicationContext(),spot.getSpotType()));
             spotMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-            Online_SpotInfoWindow infoWindow = new Online_SpotInfoWindow(R.layout.info_window,map,this);
-            spotMarker.setInfoWindow(infoWindow);
-            spotClusterHashMap.get(localSpot.getSpotType()).add(spotMarker);
+            spotMarker.setInfoWindow(new Online_SpotInfoWindow(R.layout.info_window,map,this));
+            clusterHashMap.get(spot.getSpotType()).add(spotMarker);
         }
-        for (SpotCluster spotCluster : spotClusterHashMap.values()){
-            //Log.d(log, "cluster: " + spotCluster.getName() + " items: " + spotCluster.getItems().size());
+        for (SpotCluster spotCluster : clusterHashMap.values()){
+            Log.d(log, "cluster: " + spotCluster.getName() + " items: " + spotCluster.getItems().size());
             map.getOverlays().add(spotCluster);
         }
         map.invalidate();
     }
 
-    private void removeAllClusters(){
-        Log.d(log,"removeAllClusters (all)");
-        for (SpotCluster spotCluster : spotClusterHashMap.values()){
-            map.getOverlays().remove(spotCluster);
-        }
-        spotClusterHashMap.clear();
-
-        map.invalidate();
-    }
-
-    private void removeCluster(SpotType spotTypeSelection) {
-        Log.d(log, "removeCluster type: " + spotTypeSelection);
-        if( map.getOverlays().contains(spotClusterHashMap.get(spotTypeSelection)) ){
-            map.getOverlays().remove(spotClusterHashMap.get(spotTypeSelection));
+    /*
+    * creates the KML overlay / layer if available
+    * */
+    private void createKMLOverlay() {
+        if ( kmlFile != null ) {
+            KmlDocument kmlDocument = new KmlDocument();
+            kmlDocument.parseKMLFile(kmlFile);
+            kmlOverlay = (FolderOverlay) kmlDocument.mKmlRoot.buildOverlay(map, null, null, kmlDocument);
+            map.getOverlays().add(kmlOverlay);
             map.invalidate();
+            Log.d(log, "kml overlay created");
         }
     }
 
-    private void addCluster(SpotType spotTypeSelection) {
-        Log.d(log, "addCluster type: " + spotTypeSelection);
-        if (!map.getOverlays().contains(spotClusterHashMap.get(spotTypeSelection))){
-            map.getOverlays().add(spotClusterHashMap.get(spotTypeSelection));
-            map.invalidate();
+    /*
+    * removes the KML overlay / layer if available
+    * */
+    private void removeKMLOverlay() {
+        if ( kmlFile != null ){
+            if (map.getOverlays().contains(kmlOverlay)){
+                map.getOverlays().remove(kmlOverlay);
+                map.invalidate();
+                Log.d(log,"kml overlay removed");
+            }
         }
     }
 
+    private void setFloatingActionButton() {
+        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        fab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                final GeoPoint geoPoint = myPositionOverlay.getMyLocation();
+                if (geoPoint != null){
+                    map.getController().animateTo(geoPoint);
+                }else{
+                    CoordinatorLayout coordinatorLayout = (CoordinatorLayout)findViewById(R.id.main_coordinator);
+                    Snackbar.make(coordinatorLayout, getString(R.string.waiting_for_gps_signal_message), Snackbar.LENGTH_SHORT)
+                            .show();
+                }
+            }
+        });
+        fab.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                markerDialog.show();
+                return false;
+            }
+        });
+    }
 
+    /*
+    * sets the default zoom level
+    * adds a MapEventsOverlay to receive tab events on map
+    * */
+    private void setMap() {
+        map = (MapView) findViewById(R.id.map);
+        map.setTileSource(TileSourceFactory.MAPNIK);
+        map.setMultiTouchControls(true);
+        map.getController().setZoom(15);
+        MapEventsOverlay mapEventsOverlay = new MapEventsOverlay(this, this);
+        map.getOverlays().add(0, mapEventsOverlay);
+
+
+        myPositionOverlay = new MyPositionOverlay(this, map);
+        myPositionOverlay.enableMyLocation();
+        map.getOverlays().add(myPositionOverlay);
+    }
+
+    /*
+    * creates the toolbar menu
+    * */
     @Override
-    public void infoCallback(Spot spot) {
-        /*
-        * a callback from infoWindow class to start InfoXXXActivity* with more information and
-        * the possibility to edit.
-        *
-        * "*" either Offline_InfoActivity or InfoOnlineActivity
-        *
-        * In this case OnLine_InfoActivity
-        * */
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return true;
+    }
 
+    /*
+    * receives toolbar item selections and starts corresponding activities
+    * */
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()){
+            case R.id.action_about:
+                Intent intent = new Intent(this,AboutActivity.class);
+                startActivity(intent);
+                break;
+            case R.id.action_hub:
+                Intent hubIntent = new Intent(this, Online_HubActivity.class);
+                hubIntent.putExtra(GOOGLE_ID,googleId);
+                startActivityForResult(hubIntent,HUB_REQUEST);
+                break;
+            case R.id.action_new:
+                GeoPoint geoPoint = myPositionOverlay.getMyLocation();
+                if ( geoPoint != null) {
+                    Log.d(log, "starting NewActivity with geoPoint: " + geoPoint);
+                    Intent newSpotIntent = new Intent(this, Online_NewActivity.class);
+                    newSpotIntent.putExtra(GEOPOINT, new Gson().toJson(geoPoint));
+                    newSpotIntent.putExtra(GOOGLE_ID,googleId);
+                    startActivityForResult(newSpotIntent, NEW_SPOT_REQUEST);
+                }
+                break;
+            case R.id.action_kml:
+                Intent kmlIntent = new Intent(this,KMLActivity.class);
+                startActivityForResult(kmlIntent,KML_REQUEST );
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    /*
+    * MapEventsOverlay listener
+    * the overlay is on the bottom of the layer stack
+    * all other layers are above
+    * if a press event happens on the map, the map processes the event from top of the layer stack
+    * to bottom. if no other listener grabs the event, it lands here.
+    *
+    * */
+    @Override
+    public boolean singleTapConfirmedHelper(GeoPoint p) {
         closeAllInfoWindows();
-        Intent infoIntent = new Intent(this,Online_InfoActivity.class);
-        infoIntent.putExtra(SPOT, new Gson().toJson(spot));
-        infoIntent.putExtra(GOOGLE_NAME,googleName);
-        infoIntent.putExtra(GOOGLE_ID,googleId);
-        startActivityForResult(infoIntent, INFO_ACTIVITY_REQUEST);
+        return false;
     }
 
     private void closeAllInfoWindows() {
-        for (SpotCluster spotCluster : spotClusterHashMap.values()){
+        for (SpotCluster spotCluster : clusterHashMap.values()){
             for (Marker spotMarker : spotCluster.getItems()){
                 spotMarker.closeInfoWindow();
             }
         }
     }
 
-    @Override   //Touch on Map
-    public boolean singleTapConfirmedHelper(GeoPoint p) {
-        Log.d(log,"singleTapConfirmedHelper closing all info windows");
+    /*
+    * long press event on bottom layer shows newMarkerDialog -> links to NewActivity
+    * */
+    @Override
+    public boolean longPressHelper(final GeoPoint p) {
         closeAllInfoWindows();
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        newMarkerDialog = builder
+                .setTitle(getString(R.string.new_marker_alert_message))
+                .setNegativeButton(getText(R.string.cancel), new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        newMarkerDialog.cancel();
+                    }
+                }).setPositiveButton(getText(R.string.ok), new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        if (p != null) {
+                            Intent newSpotIntent = new Intent(Online_MainActivity.this, Online_NewActivity.class);
+                            newSpotIntent.putExtra(GEOPOINT, new Gson().toJson(p));
+                            startActivityForResult(newSpotIntent, NEW_SPOT_REQUEST);
+                        }
+                    }
+                }).create();
+        newMarkerDialog.show();
         return false;
     }
 
-    @Override   //Touch on Map
-    public boolean longPressHelper(GeoPoint p) {
-        Log.d(log, "longPressHelper");
-        return false;
+    /*
+    * A callback from SpotInfoWindow to start InfoActivity
+    * */
+    @Override
+    public void infoCallback(Spot spot) {
+        Intent infoIntent = new Intent(this,Online_InfoActivity.class);
+        infoIntent.putExtra(SPOT,new Gson().toJson(spot));
+        infoIntent.putExtra(GOOGLE_ID, googleId);
+        startActivityForResult(infoIntent, INFO_ACTIVITY_REQUEST);
+    }
+
+    private void loadSpotsFromDatabase() {
+        //todo volley request
+        JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.POST,PHP_GET_ALL_SPOTS,null,this,this);
+        Volley.newRequestQueue(this).add(jsonObjectRequest);
     }
 
     @Override
@@ -505,25 +493,9 @@ public class Online_MainActivity extends AppCompatActivity implements MapEventsR
 
     @Override
     public void onResponse(JSONObject response) {
-        Log.d(log,"volley response: " + response.toString());
-        try {
-            String rawSuccess = response.getString("success");
-            Log.d(log,"success string: " + rawSuccess);
-            switch (rawSuccess){
-                case "0":
-                    Toast.makeText(this,getString(R.string.remote_db_error_message), Toast.LENGTH_SHORT).show();
-                    break;
-                case "1":
-                    spotList.clear();
-                    spotList = Utilities.createSpotListFromJSONResult(response);
-                    break;
-                case "2":
-                    Toast.makeText(this,getString(R.string.no_spot_found_message), Toast.LENGTH_SHORT).show();
-                    break;
-            }
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        createSpotCluster();
+        Log.d(log,"onResonse: " + response);
+        List<Spot> spotList = new ArrayList<>();
+        spotList = VolleyResponseParser.parseVolleySpotListResponse(response);
+        createAllClusters(spotList);
     }
 }

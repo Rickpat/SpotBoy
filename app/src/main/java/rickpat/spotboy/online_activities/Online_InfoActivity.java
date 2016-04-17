@@ -2,8 +2,10 @@ package rickpat.spotboy.online_activities;
 
 import android.app.ProgressDialog;
 import android.content.DialogInterface;
-import android.graphics.Bitmap;
 import android.os.Bundle;
+import android.support.v4.app.Fragment;
+import android.support.v4.view.PagerAdapter;
+import android.support.v4.view.ViewPager;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -12,7 +14,6 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -21,7 +22,6 @@ import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
-import com.android.volley.toolbox.ImageRequest;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.gson.Gson;
@@ -32,31 +32,38 @@ import org.json.JSONObject;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Vector;
 
 import rickpat.spotboy.R;
+import rickpat.spotboy.offline_fragments.GalleryItemFragment;
 import rickpat.spotboy.spotspecific.Spot;
+import rickpat.spotboy.utilities.ScreenSlidePagerAdapter;
 import rickpat.spotboy.utilities.Utilities;
 
 import static rickpat.spotboy.utilities.Constants.GOOGLE_ID;
 import static rickpat.spotboy.utilities.Constants.GOOGLE_NAME;
+import static rickpat.spotboy.utilities.Constants.IMG_URL;
 import static rickpat.spotboy.utilities.Constants.INFO_ACTIVITY_SPOT_DELETED;
 import static rickpat.spotboy.utilities.Constants.INFO_ACTIVITY_SPOT_MODIFIED;
 import static rickpat.spotboy.utilities.Constants.SPOT;
 
-import static rickpat.spotboy.utilities.SpotBoy_Server_URIs.*;
+import static rickpat.spotboy.utilities.Constants.TIME_FORMAT_INFO;
+import static rickpat.spotboy.utilities.Constants.VIEW_PAGER_MAX_FRAGMENTS;
+import static rickpat.spotboy.utilities.SpotBoy_Server_Constants.*;
 
 public class Online_InfoActivity extends AppCompatActivity implements View.OnClickListener {
 
     private Spot spot;
 
     private String log="Online_InfoActivity";
-
+    private ViewPager mPager;                   //container for images
+    private List<Fragment> viewPagerFragments;  //every fragment takes an image
     private AlertDialog catAlertDialog;
     private AlertDialog notesAlertDialog;
     private String googleId;
-    private String googleName;
     private boolean hasAccess = false;
     private boolean isModified = false;
     private ProgressDialog progressDialog;
@@ -76,43 +83,88 @@ public class Online_InfoActivity extends AppCompatActivity implements View.OnCli
 
         Bundle bundle = getIntent().getExtras();
 
-        if ( bundle.containsKey(SPOT) && bundle.containsKey(GOOGLE_NAME) && bundle.containsKey(GOOGLE_ID) ){
+        if ( bundle.containsKey(SPOT) && bundle.containsKey(GOOGLE_ID) ){
             spot = new Gson().fromJson(bundle.getString(SPOT), Spot.class);
             googleId = bundle.getString(GOOGLE_ID);
-            googleName = bundle.getString(GOOGLE_NAME);
-            Log.d(log,"id: " + spot.getId() + " spotCreatorGoogleId: " + spot.getGoogleId() + "\nuser googleId: " + googleId + " userName: " + googleName);
+            Log.d(log,"id: " + spot.getId() + " spotCreatorGoogleId: " + spot.getGoogleId() + "\nuser googleId: " + googleId );
         }else {
             finish();
         }
 
+        mPager = (ViewPager) findViewById(R.id.info_viewPager);
+        viewPagerFragments = new Vector<>(VIEW_PAGER_MAX_FRAGMENTS);
+    }
+
+    @Override   //after onCreate
+    protected void onStart() {
+        super.onStart();
         if (googleId.equalsIgnoreCase(spot.getGoogleId())) {
             Log.d(log, "user has access..setting dialogs");
             hasAccess = true;
         }
-
-        setContent();
-
-        if (hasAccess){setDialogs();}
+        //next onResume or onRestoreInstanceSave
     }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        googleId = savedInstanceState.getString(GOOGLE_ID);
+        spot = new Gson().fromJson(savedInstanceState.getString(SPOT),Spot.class);
+        super.onRestoreInstanceState(savedInstanceState);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        setContent();
+        setViewPagerContent();
+        if (hasAccess){setDialogs();}
+        //app's ready now
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        outState.putString(GOOGLE_ID,googleId);
+        outState.putString(SPOT, new Gson().toJson(spot));
+        super.onSaveInstanceState(outState);
+    }
+
+    //-----------------------------------
 
     private void setContent() {
         ((TextView)findViewById(R.id.info_catTextView)).setText(spot.getSpotType().toString());
         ((TextView)findViewById(R.id.info_notesTextView)).setText(spot.getNotes());
 
-        //todo load images
-
-        DateFormat df = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.GERMAN);
+        DateFormat df = new SimpleDateFormat(TIME_FORMAT_INFO, Locale.ENGLISH);
 
         ((TextView)findViewById(R.id.info_dateTextView)).setText(df.format(spot.getDate()));
 
         if (hasAccess){
-            findViewById(R.id.info_cat_fab_edit).setOnClickListener(this);
+            findViewById(R.id.info_type_fab_edit).setOnClickListener(this);
             findViewById(R.id.info_notes_fab_edit).setOnClickListener(this);
         }else{
-            findViewById(R.id.info_cat_fab_edit).setVisibility(View.GONE);
+            findViewById(R.id.info_type_fab_edit).setVisibility(View.GONE);
             findViewById(R.id.info_notes_fab_edit).setVisibility(View.GONE);
         }
+    }
 
+    /*
+    * For each image a fragment in the view pager
+    * An adapter cares about the fragments inside the view pager.
+    * */
+    private void setViewPagerContent() {
+        for ( String url : spot.getUrlList() ){
+            Bundle page = new Bundle();
+            page.putString(IMG_URL, url);
+            viewPagerFragments.add(Fragment.instantiate(this, GalleryItemFragment.class.getName(), page));
+        }
+        PagerAdapter mPagerAdapter = new ScreenSlidePagerAdapter(getSupportFragmentManager(), viewPagerFragments);
+        mPager.setAdapter(mPagerAdapter);
+        mPager.invalidate();
     }
 
     private void setDialogs() {
@@ -318,7 +370,7 @@ public class Online_InfoActivity extends AppCompatActivity implements View.OnCli
     @Override
     public void onClick(View v) {
         switch (v.getId()){
-            case R.id.info_cat_fab_edit:
+            case R.id.info_type_fab_edit:
                 catAlertDialog.show();
                 break;
             case R.id.info_notes_fab_edit:

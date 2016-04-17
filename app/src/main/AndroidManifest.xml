@@ -90,7 +90,7 @@
         <!-- -->
 
         <activity
-            android:name=".activities.KML_Activity_Start"
+            android:name=".activities.KMLActivity"
             android:label="@string/activity_info_title"
             android:theme="@style/AppTheme.NoActionBar">
         </activity>

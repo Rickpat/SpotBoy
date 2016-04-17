@@ -47,7 +47,7 @@
                 <me.grantland.widget.AutofitTextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:id="@+id/new_spot_cat_textView"
+                    android:id="@+id/new_spot_type_textView"
                     android:text="@string/new_spot_default_cat"
                     android:paddingLeft="@dimen/default_text_padding_left_right"
                     android:paddingRight="@dimen/default_text_padding_left_right"

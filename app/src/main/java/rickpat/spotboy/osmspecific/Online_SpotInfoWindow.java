@@ -28,7 +28,7 @@ public class Online_SpotInfoWindow extends InfoWindow {
 
     private InfoCallback infoCallback;
     private Activity activity;
-    private String log = "Offline_SpotInfoWindow";
+    private String log = "Online_SpotInfoWindow";
 
     public interface InfoCallback{
         void infoCallback(Spot remote);

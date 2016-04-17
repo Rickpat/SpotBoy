@@ -22,14 +22,15 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import rickpat.spotboy.R;
 import rickpat.spotboy.online_activities.Online_InfoActivity;
 import rickpat.spotboy.spotspecific.Spot;
-import rickpat.spotboy.utilities.SpotBoy_Server_URIs;
+import rickpat.spotboy.utilities.SpotBoy_Server_Constants;
 import rickpat.spotboy.utilities.SpotHubAdapter;
-import rickpat.spotboy.utilities.Utilities;
+import rickpat.spotboy.utilities.VolleyResponseParser;
 
 import static rickpat.spotboy.utilities.Constants.GOOGLE_ID;
 import static rickpat.spotboy.utilities.Constants.GOOGLE_NAME;
@@ -39,51 +40,87 @@ import static rickpat.spotboy.utilities.Constants.INFO_ACTIVITY_SPOT_DELETED;
 import static rickpat.spotboy.utilities.Constants.INFO_ACTIVITY_SPOT_MODIFIED;
 import static rickpat.spotboy.utilities.Constants.SPOT;
 
+/*
+* it's mainly the same as HubMainFragment. The only difference is, that the received list gets filtered by logged googleId
+* */
+
 public class HubUserFragment extends Fragment  implements SpotHubAdapter.IHubAdapter, Response.ErrorListener, Response.Listener<JSONObject>{
 
-    protected RecyclerView mRecyclerView;
-    protected SpotHubAdapter mAdapter;
-    protected RecyclerView.LayoutManager mLayoutManager;
-    protected List<Spot> spotList;
+    private RecyclerView mRecyclerView;
+    private SpotHubAdapter mAdapter;
+    private RecyclerView.LayoutManager mLayoutManager;
+    private String googleId;
+    private List<Spot> spotList;
+
     private String log = "HUB_USER_FRAGMENT";
 
-    private String googleId;
-    private String googleName;
-
     @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-
-        spotList = new ArrayList<>();
-        googleName = ((IHub)getActivity()).getUserGoogleName();
-        googleId = ((IHub)getActivity()).getUserGoogleId();
+    public void onPause() {
+        super.onPause();
+        Log.d(log,"onPause");
+        //next onSaveInstanceState
     }
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
+    public void onSaveInstanceState(Bundle outState) {
+        outState.putString(GOOGLE_ID, googleId);
+        super.onSaveInstanceState(outState);
+        Log.d(log, "onSaveInstanceState");
+        //app's off
+    }
+
+    @Override   //first
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        spotList = new ArrayList<>();
+        Log.d(log,"onCreate");
+    }
+
+    /*
+    * creates recycler view with adapter and layout manager
+    * */
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        Log.d(log,"onCreateView");
         View rootView = inflater.inflate(R.layout.content_hub_user_fragment, container, false);
         mRecyclerView = (RecyclerView) rootView.findViewById(R.id.hub_user_recycler_view);
-
         mLayoutManager = new LinearLayoutManager(this.getContext());
-
-        mAdapter = new SpotHubAdapter(spotList,this.getActivity());
-
-
+        mAdapter = new SpotHubAdapter(spotList,this);
         mRecyclerView.setLayoutManager(mLayoutManager);
         mRecyclerView.setAdapter(mAdapter);
-        loadSpots();
-
         return rootView;
     }
 
     @Override
+    public void onStart() {
+        super.onStart();
+        Log.d(log, "onStart");
+    }
+
+    @Override
+    public void onResume() {
+        Log.d(log,"onResume");
+        super.onResume();
+        loadSpots();
+        //app's ready and waiting for response
+    }
+
+    @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
+        Log.d(log, "onViewCreated");
         super.onViewCreated(view, savedInstanceState);
     }
 
+    @Override
+    public void onActivityCreated(Bundle savedInstanceState) {
+        Log.d(log, "onActivityCreated");
+        super.onActivityCreated(savedInstanceState);
+        //googleId = savedInstanceState.getString(GOOGLE_ID);
+    }
+
     private void loadSpots() {
-        String uri = SpotBoy_Server_URIs.PHP_GET_ALL_SPOTS;
+        Log.d(log, "loadSpots");
+        String uri = SpotBoy_Server_Constants.PHP_GET_ALL_SPOTS;
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, uri, null,this,this);
         Volley.newRequestQueue(this.getContext()).add(request);
     }
@@ -91,10 +128,10 @@ public class HubUserFragment extends Fragment  implements SpotHubAdapter.IHubAda
     @Override
     public void moreButtonCallback(Spot spot) {
         Log.d(log, "moreButtonCallback");
+        String googleId = ((IHub)getActivity()).getUserGoogleId();
 
         Intent infoIntent = new Intent(this.getContext(),Online_InfoActivity.class);
         infoIntent.putExtra(SPOT,new Gson().toJson(spot));
-        infoIntent.putExtra(GOOGLE_NAME, googleName);
         infoIntent.putExtra(GOOGLE_ID,googleId);
         startActivityForResult(infoIntent, INFO_ACTIVITY_REQUEST);
     }
@@ -117,35 +154,26 @@ public class HubUserFragment extends Fragment  implements SpotHubAdapter.IHubAda
 
     @Override
     public void onResponse(JSONObject response) {
-        Log.d(log, "volley response: " + response.toString());
-        try {
-            String rawSuccess = response.getString("success");
-            Log.d(log,"success string: " + rawSuccess);
-            switch (rawSuccess){
-                case "0":
-                    Toast.makeText(this.getContext(), getString(R.string.remote_db_error_message), Toast.LENGTH_SHORT).show();
-                    break;
-                case "1":
-                    spotList = Utilities.createSpotListFromJSONResult(response);
-                    int size = spotList.size();
-                    for (int i = spotList.size() ; i > 0 ; i--){
-                        Log.d(log,"spot " + i + "/" + size);
-                        if (!spotList.get(i-1).getGoogleId().equalsIgnoreCase(googleId)){
-                            spotList.remove(i-1);
-                        }
-                    }
-
-                    mAdapter.updateList(spotList);
-                    break;
-                case "2":
-                    Toast.makeText(this.getContext(),getString(R.string.no_spot_found_message), Toast.LENGTH_SHORT).show();
-                    break;
-            }
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
+        Log.d(log,"onResponse");
+        spotList = VolleyResponseParser.parseVolleySpotListResponse(response);
+        filterList();
+        mAdapter.updateList(spotList);
     }
 
+    private void filterList() {
+        Iterator<Spot> spotIterator = spotList.iterator();
+        while(spotIterator.hasNext()){
+            Spot spot = spotIterator.next();
+            if (spot.getGoogleId().equalsIgnoreCase(googleId)){
+                spotList.remove(spot);
+            }
+        }
+
+    }
+
+    /*
+    * todo reload specific spot not all
+    * */
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);

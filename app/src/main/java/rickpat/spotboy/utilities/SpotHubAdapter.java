@@ -1,7 +1,9 @@
 package rickpat.spotboy.utilities;
 
 import android.app.Activity;
+import android.content.Context;
 import android.graphics.Point;
+import android.support.v4.app.Fragment;
 import android.support.v7.widget.RecyclerView;
 import android.view.Display;
 import android.view.LayoutInflater;
@@ -21,9 +23,8 @@ import rickpat.spotboy.spotspecific.Spot;
 
 public class SpotHubAdapter extends RecyclerView.Adapter<SpotHubAdapter.ViewHolder> {
     private List<Spot> spotList;
-    private int displayW;
     private IHubAdapter callback;
-    private Activity activity;
+    private Context context;
 
     public interface IHubAdapter{
         void moreButtonCallback(Spot spot);
@@ -45,15 +46,15 @@ public class SpotHubAdapter extends RecyclerView.Adapter<SpotHubAdapter.ViewHold
     }
 
     public SpotHubAdapter(List<Spot> spotList, Activity activity) {
-
-        Display display = activity.getWindowManager().getDefaultDisplay();
-        Point size = new Point();
-        display.getSize(size);
-
         this.spotList = spotList;
-        this.activity = activity;
-        this.displayW = size.x;
         this.callback = (IHubAdapter)activity;
+        this.context = activity.getApplicationContext();
+    }
+
+    public SpotHubAdapter(List<Spot> spotList, Fragment fragment) {
+        this.spotList = spotList;
+        this.callback = (IHubAdapter)fragment;
+        this.context = fragment.getContext();
     }
 
     @Override
@@ -69,7 +70,7 @@ public class SpotHubAdapter extends RecyclerView.Adapter<SpotHubAdapter.ViewHold
         holder.catTextView.setText(spot.getSpotType().toString());
 
         if (spot.getUrlList().size() > 0 ){
-            Glide.with(activity).load(spot.getUrlList().get(0)).override(this.displayW - 50, 350).into(holder.imageView);
+            Glide.with(context).load(spot.getUrlList().get(0)).into(holder.imageView);
         }
 
         holder.markerButton.setOnClickListener(new View.OnClickListener() {

@@ -14,6 +14,7 @@
     <string name="libraries">libraries</string>
     <string name="default_content_description">bla</string>
     <string name="gps_not_ready_message">gps not ready</string>
+    <string name="waiting_for_gps_signal_message">waiting for gps data</string>
     <string name="new_spot_default_cat">STREET</string>
     <string name="category">category</string>
     <string name="xxx">xxxxxx</string>
@@ -47,6 +48,7 @@
     <string name="action_hub">HUB</string>
     <string name="action_new">NEW</string>
     <string name="action_about">About</string>
+    <string name="action_kml">KML</string>
     <string name="use_cached_gps_question">use cached gps data?</string>
     <string name="local_db_error_message">local database error</string>
     <string name="connection_error_message">connection error</string>
@@ -61,10 +63,12 @@
     <string name="sending">sending</string>
     <string name="new_spot_information">new spot information</string>
     <string name="db_error">database error</string>
-    <string name="action_kml">KML</string>
-    <string name="create_new_kml">create new kml</string>
-    <string name="kml_load_from_file">load kml from file</string>
+    <string name="activity_kml_title">KML</string>
+    <string name="kml_load_button">load KML from file</string>
+    <string name="kml_remove_button">remove current KML</string>
     <string name="kml_file_dialog_title">choose kml</string>
     <string name="no_file_found_message">no file found</string>
     <string name="remove_current_kml_overlay">remove current kml</string>
+    <string name="creating_spot_progressTitle">creating spot</string>
+    <string name="images_left_message">image(s) left</string>
 </resources>

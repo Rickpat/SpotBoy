@@ -9,11 +9,14 @@ import android.graphics.Matrix;
 import android.graphics.Point;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
+import android.support.v4.content.res.ResourcesCompat;
+import android.util.Base64;
 import android.util.Log;
 import android.view.Display;
 
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -25,6 +28,7 @@ import rickpat.spotboy.enums.SpotType;
 import rickpat.spotboy.R;
 import rickpat.spotboy.spotspecific.Spot;
 
+import java.io.ByteArrayOutputStream;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -38,42 +42,16 @@ public class Utilities {
 
     private Utilities(){}
 
-
-    public static int getDeviceWidth( Activity activity){
-        Display display = activity.getWindowManager().getDefaultDisplay();
-        Point point = new Point();
-        display.getSize(point);
-        return point.x;
+    /*
+    * converts image to string
+    * */
+    public static String getStringImage(Bitmap bmp){
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        bmp.compress(Bitmap.CompressFormat.JPEG, 100, byteArrayOutputStream);
+        byte[] imageBytes = byteArrayOutputStream.toByteArray();
+        String encodedImage = Base64.encodeToString(imageBytes, Base64.DEFAULT);
+        return encodedImage;
     }
-
-    public static String[] getLibrariesStringArray(){
-        String[] librariesArray = new String[Library.values().length];
-        int help = 0;
-        for (Library lib : Library.values()){
-            librariesArray[help] = lib.toString();
-            help++;
-        }
-        Arrays.sort(librariesArray);
-        return librariesArray;
-    }
-
-    public static String getTimeString(){
-        DateFormat df = new SimpleDateFormat(Constants.TIME_FORMAT, Locale.UK);
-        return df.format(new Date());
-    }
-
-    public static String[] getSpotTypes(){
-        String[] items = new String[SpotType.values().length];
-        int i = 0;
-        for( SpotType category : SpotType.values()){
-            items[i] = category.toString().toUpperCase();
-            i++;
-        }
-        Arrays.sort(items);
-        return items;
-    }
-
-
 
     public static Bitmap decodeSampledBitmapFromResource(Resources res, String fileName,
                                                          int reqWidth, int reqHeight) {
@@ -105,8 +83,7 @@ public class Utilities {
 
             // Calculate the largest inSampleSize value that is a power of 2 and keeps both
             // height and width larger than the requested height and width.
-            while ((halfHeight / inSampleSize) > reqHeight
-                    && (halfWidth / inSampleSize) > reqWidth) {
+            while ((halfHeight / inSampleSize) > reqHeight && (halfWidth / inSampleSize) > reqWidth) {
                 inSampleSize *= 2;
             }
         }
@@ -114,106 +91,91 @@ public class Utilities {
         return inSampleSize;
     }
 
+    /*
+    * loads items from enum to string array
+    * */
+    public static String[] getLibrariesStringArray(){
+        String[] librariesArray = new String[Library.values().length];
+        int help = 0;
+        for (Library lib : Library.values()){
+            librariesArray[help] = lib.toString();
+            help++;
+        }
+        Arrays.sort(librariesArray);
+        return librariesArray;
+    }
+
+    /*
+    * loads items from enum to string array
+    * */
+    public static String[] getSpotTypes(){
+        String[] items = new String[SpotType.values().length];
+        int i = 0;
+        for( SpotType category : SpotType.values()){
+            items[i] = category.toString().toUpperCase();
+            i++;
+        }
+        Arrays.sort(items);
+        return items;
+    }
+
+    /*
+    * loads Bitmap from resources by given spotType for SpotCluster class
+    * */
     public static Bitmap getClusterIcon(Context applicationContext, SpotType spotType) {
         Bitmap icon;
         int resourceId = 0;
         switch (spotType){
-            case DIRT:
+            case dirt:
                 resourceId = R.drawable.ic_dirtcluster;
                 break;
-            case PARK:
+            case park:
                 resourceId = R.drawable.ic_parkcluster;
                 break;
-            case STREET:
+            case street:
                 resourceId = R.drawable.ic_streetcluster;
                 break;
-            case FLAT:
+            case flat:
                 resourceId = R.drawable.ic_flatcluster;
         }
         icon = BitmapFactory.decodeResource(applicationContext.getResources(), resourceId);
         return icon;
     }
 
+    /*
+    * loads Drawable from resources by given spotType for SpotMarker class
+    * */
     public static Drawable getMarkerIcon(Context applicationContext, SpotType spotType) {
         Drawable icon;
         int resourceId = 0;
         switch (spotType){
-            case DIRT:
+            case dirt:
                 resourceId = R.drawable.ic_dirtmarker;
                 break;
-            case PARK:
+            case park:
                 resourceId = R.drawable.ic_parkmarker;
                 break;
-            case STREET:
+            case street:
                 resourceId = R.drawable.ic_streetmarker;
                 break;
-            case FLAT:
+            case flat:
                 resourceId = R.drawable.ic_flatmarker;
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            icon = applicationContext.getResources().getDrawable(resourceId,applicationContext.getTheme());
-        }else{
-            icon = applicationContext.getResources().getDrawable(resourceId);
-        }
+
+        icon = ResourcesCompat.getDrawable(applicationContext.getResources(), resourceId, null);
         return icon;
     }
 
+    /*
+    * takes spot type string and returns SpotType
+    * */
     public static SpotType parseSpotTypeString(String spotType){
         SpotType type = null;
         for (SpotType item : SpotType.values()){
             if (spotType.equalsIgnoreCase(item.toString())){
-                return item;
+                type = item;
             }
         }
-        return null;
-    }
-
-    public static List<Spot> createSpotListFromJSONResult( JSONObject rawJson ){
-        List<Spot> remoteList = new ArrayList<>();
-        try {
-            JSONArray jsonArray = rawJson.getJSONArray("spots");
-            Log.d(log, "spot json array elements: " + jsonArray.length());
-            for( int i = 0 ; i < jsonArray.length(); i++ ){
-                JSONObject jsonSpot = jsonArray.getJSONObject(i);
-                String id = jsonSpot.getString("id");
-                String googleId = jsonSpot.getString("googleId");
-                GeoPoint geoPoint = new Gson().fromJson(jsonSpot.getString("geoPoint"), GeoPoint.class);
-                SpotType spotType = parseSpotTypeString(jsonSpot.getString("spotType"));
-                String notes = jsonSpot.getString("notes");
-
-                //todo recreate img url list
-                /*
-                if (jsonSpot.has("imgURL")) {
-                    imgURL = jsonSpot.getString("imgURL");
-                }
-                */
-
-                String creationTime = jsonSpot.getString("creationTime");
-                Date date = new Date(Long.parseLong(creationTime));
-
-                remoteList.add(new Spot(googleId,id,geoPoint,notes,new ArrayList<String>(),date,spotType));
-                Log.d(log,"spot " + i + " googleId: " + googleId);
-            }
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        return remoteList;
-    }
-
-    public static Bitmap getResizedBitmap(Bitmap bm, int newWidth, int newHeight) {
-        int width = bm.getWidth();
-        int height = bm.getHeight();
-        float scaleWidth = ((float) newWidth) / width;
-        float scaleHeight = ((float) newHeight) / height;
-        // CREATE A MATRIX FOR THE MANIPULATION
-        Matrix matrix = new Matrix();
-        // RESIZE THE BIT MAP
-        matrix.postScale(scaleWidth, scaleHeight);
-
-        // "RECREATE" THE NEW BITMAP
-        Bitmap resizedBitmap = Bitmap.createBitmap(
-                bm, 0, 0, width, height, matrix, false);
-        bm.recycle();
-        return resizedBitmap;
+        return type;
     }
 }

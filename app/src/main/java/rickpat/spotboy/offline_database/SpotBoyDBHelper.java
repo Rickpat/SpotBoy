@@ -26,7 +26,7 @@ public class SpotBoyDBHelper extends SQLiteOpenHelper {
 
     private String log = "SpotBoyDBHelper";
 
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 2;
 
     private static final String DATABASE_NAME = "spotBoy_db_v06";
     private static final String TABLE_SPOTS = "spotBoy_db_table_v06";
@@ -34,7 +34,7 @@ public class SpotBoyDBHelper extends SQLiteOpenHelper {
     private static final String KEY_ID = "id";
     private static final String KEY_TYPE = "type";
     private static final String KEY_NOTES = "notes";
-    private static final String KEY_URI = "urlList";
+    private static final String KEY_URL = "urlList";
     private static final String KEY_DATE = "date";
     private static final String KEY_GEO = "geo";
 
@@ -48,7 +48,7 @@ public class SpotBoyDBHelper extends SQLiteOpenHelper {
     public void onCreate(SQLiteDatabase db) {
         String CREATE_SPOTS_TABLE = "CREATE TABLE " + TABLE_SPOTS + "("
                 + KEY_ID + " INTEGER PRIMARY KEY," + KEY_TYPE + " TEXT,"
-                + KEY_NOTES + " TEXT,"+ KEY_URI + " TEXT,"+ KEY_GEO + " TEXT," + KEY_DATE + ")";
+                + KEY_NOTES + " TEXT,"+ KEY_URL + " TEXT,"+ KEY_GEO + " TEXT," + KEY_DATE + ")";
         db.execSQL(CREATE_SPOTS_TABLE);
     }
 
@@ -57,58 +57,6 @@ public class SpotBoyDBHelper extends SQLiteOpenHelper {
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_SPOTS);
         onCreate(db);
     }
-    /*
-    DEPRECATED
-    public long updateSpot(Spot local){
-        ContentValues values = new ContentValues();
-        values.put(KEY_TYPE, local.getSpotType().toString());
-        values.put(KEY_NOTES, local.getNotes());
-        values.put(KEY_URI, local.getUri());
-        values.put(KEY_DATE, String.valueOf(local.getDate().getTime()));
-        return db.update(TABLE_SPOTS, values, "id=" + local.getId(), null);
-    }
-
-    public long addSpot(Spot local) {
-        ContentValues values = new ContentValues();
-        values.put(KEY_TYPE, local.getSpotType().toString());
-        values.put(KEY_NOTES, local.getNotes());
-        values.put(KEY_URI, local.getUri());
-        values.put(KEY_GEO, new Gson().toJson(local.getGeoPoint()));
-        values.put(KEY_DATE, local.getDate().getTime());
-        return db.insert(TABLE_SPOTS, null, values);
-    }
-
-
-
-    public List<Spot> getSpotList(){
-        List<Spot> localList = new ArrayList<>();
-
-        Cursor cursor = db.query(TABLE_SPOTS, null, null, null, null, null, null);
-        cursor.moveToFirst();
-        int count = cursor.getCount();
-        Log.d(log, "count: " + count);
-        for (int i = 0 ; i < count ; i++){
-            String id = String.valueOf(cursor.getLong(0));
-            SpotType spotType = Utilities.parseSpotTypeString(cursor.getString(1));
-            String notes = cursor.getString(2);
-            String url = cursor.getString(3);
-            GeoPoint geoPoint = new Gson().fromJson(cursor.getString(4), GeoPoint.class);
-            Date date = new Date(cursor.getLong(5));
-            Spot spot = new Spot(id,geoPoint,notes,urlList,date,spotType);
-
-            Log.d(log, "id " + id +
-                    "\ncat " + spotType +
-                    "\nnotes " + notes +
-                    "\nuri " + uri +
-                    "\ntime " + date);
-            localList.add(local);
-            cursor.moveToNext();
-        }
-        cursor.close();
-        return localList;
-    }
-
-    */
 
     @SuppressWarnings("NullPointer")
     public Spot getMultipleImagesSpot( String mId ){
@@ -149,7 +97,7 @@ public class SpotBoyDBHelper extends SQLiteOpenHelper {
         ContentValues values = new ContentValues();
         values.put(KEY_TYPE, spot.getSpotType().toString());
         values.put(KEY_NOTES, spot.getNotes());
-        values.put(KEY_URI, new Gson().toJson(spot.getUrlList()));
+        values.put(KEY_URL, new Gson().toJson(spot.getUrlList()));
         values.put(KEY_GEO, new Gson().toJson(spot.getGeoPoint()));
         values.put(KEY_DATE, spot.getDate().getTime());
         return db.insert(TABLE_SPOTS, null, values);
@@ -190,7 +138,7 @@ public class SpotBoyDBHelper extends SQLiteOpenHelper {
         ContentValues values = new ContentValues();
         values.put(KEY_TYPE, spot.getSpotType().toString());
         values.put(KEY_NOTES, spot.getNotes());
-        values.put(KEY_URI, new Gson().toJson(spot.getUrlList()));
+        values.put(KEY_URL, new Gson().toJson(spot.getUrlList()));
         values.put(KEY_DATE, String.valueOf(spot.getDate().getTime()));
         return db.update(TABLE_SPOTS, values, "id=" + spot.getId(), null);
     }

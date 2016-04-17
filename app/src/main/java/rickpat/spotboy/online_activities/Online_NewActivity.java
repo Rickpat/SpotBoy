@@ -4,7 +4,6 @@ package rickpat.spotboy.online_activities;
 import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
@@ -16,7 +15,6 @@ import android.support.v4.view.ViewPager;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.util.Base64;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -28,7 +26,6 @@ import android.widget.Toast;
 
 import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
-import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
@@ -39,13 +36,13 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.osmdroid.util.GeoPoint;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -56,43 +53,29 @@ import rickpat.spotboy.R;
 import rickpat.spotboy.enums.SpotType;
 import rickpat.spotboy.offline_fragments.GalleryItemFragment;
 import rickpat.spotboy.spotspecific.Spot;
+import rickpat.spotboy.utilities.DB_ACTION;
 import rickpat.spotboy.utilities.ScreenSlidePagerAdapter;
 import rickpat.spotboy.utilities.Utilities;
 
 import static rickpat.spotboy.utilities.Constants.*;
-import static rickpat.spotboy.utilities.SpotBoy_Server_URIs.*;
+import static rickpat.spotboy.utilities.SpotBoy_Server_Constants.*;
+
+
 
 public class Online_NewActivity extends AppCompatActivity implements View.OnClickListener, Response.ErrorListener, Response.Listener<String> {
 
-    private String PREF_SPOT_TYPE = "PREF_SPOT_TYPE";
-    private String PREF_NOTES = "PREF_NOTES";
+    private AlertDialog typeDialog;             //spot type dialog
+    private GeoPoint geoPoint;                  //spot coordinates
+    private ViewPager mPager;                   //container for images
+    private ArrayList<String> urlList;          //paths of takes images
+    private ArrayList<String> urlHashList;      //hash list of the image paths to check upload status
+    private List<Fragment> viewPagerFragments;  //every fragment takes an image
+    private String log = "NEW_ACTIVITY";
+    private Spot spot;                          //container for all spot related infomation
+    private String googleId;                    //creators googleId
+    private ProgressDialog progressDialog;      //shows upload progress
 
-    private AlertDialog catDialog;
-    private GeoPoint geoPoint;
-    private static final int CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE = 100;
-
-    private ViewPager mPager;
-
-    private Set<String> urlSet;
-    private List<Fragment> viewPagerFragments;
-
-    private String KEY_IMAGE_LIST = "image";
-    private String KEY_GOOGLE_ID = "googleId";
-    private String KEY_GEO_POINT = "geoPoint";
-    private String KEY_SPOT_TYPE = "spotType";
-    private String KEY_NOTES = "notes";
-    private String KEY_TIME = "creationTime";
-    private String KEY_ID = "rowId";
-
-    private String googleId;
-    private String googleName;
-
-    private ProgressDialog progressDialog;
-    private String log = "Online_NewActivity";
-
-    private Spot spot;
-
-    @Override
+    @Override   //first
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_new);
@@ -103,160 +86,156 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         }catch (NullPointerException e){}
         getSupportActionBar().setDisplayShowHomeEnabled(true);
-
         Bundle bundle = getIntent().getExtras();
-        if (bundle.containsKey(GEOPOINT)){
-            geoPoint = new Gson().fromJson(bundle.getString(GEOPOINT),GeoPoint.class);
+        if (bundle.containsKey(GEOPOINT) && bundle.containsKey( GOOGLE_ID )){
+            geoPoint = new Gson().fromJson(bundle.getString(GEOPOINT), GeoPoint.class);
+            googleId = bundle.getString(GOOGLE_ID);
             ((TextView)findViewById(R.id.new_spot_lat)).setText(String.valueOf(geoPoint.getLatitude()));
             ((TextView)findViewById(R.id.new_spot_lon)).setText(String.valueOf(geoPoint.getLongitude()));
-
-            googleId = bundle.getString(GOOGLE_ID);
-            googleName = bundle.getString(GOOGLE_NAME);
-            Log.d(log,"googleId: " + googleId + " googleName: " + googleName);
         }else {
             finish();
         }
-
-        urlSet = new HashSet<>();
-
+        urlList = new ArrayList<>();
+        urlHashList = new ArrayList<>();
 
         findViewById(R.id.new_spot_cat_layout).setOnClickListener(this);
         findViewById(R.id.new_spot_fab_photo).setOnClickListener(this);
         mPager = (ViewPager) findViewById(R.id.new_spot_viewPager);
+        viewPagerFragments = new Vector<>(VIEW_PAGER_MAX_FRAGMENTS);
         createDialogs();
+        //next onStart
     }
 
     @Override   //After onCreate
     protected void onStart() {
         super.onStart();
-        Log.d(log, "onStart");
-        viewPagerFragments = new Vector<>(VIEW_PAGER_MAX_FRAGMENTS);
+        //next onRestoreInstanceState or onResume
     }
 
-    @Override
+    /*
+    * restore values
+    * */
+    @Override       //After onStart... but not on first start
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        urlList = savedInstanceState.getStringArrayList(URL_LIST);
+        urlHashList = savedInstanceState.getStringArrayList(URL_HASH_LIST);
+        googleId = savedInstanceState.getString(GOOGLE_ID);
+        geoPoint = new Gson().fromJson(savedInstanceState.getString(GEOPOINT, "zero"), GeoPoint.class);
+        String spotTypeString = savedInstanceState.getString(PREF_SPOT_TYPE);
         super.onRestoreInstanceState(savedInstanceState);
-        Log.d(log, "onRestoreInstanceState");
-        SharedPreferences preferences = getSharedPreferences(PREFERENCES, MODE_PRIVATE);
-        geoPoint = new Gson().fromJson(preferences.getString(GEOPOINT, "zero"), GeoPoint.class);
-        ((TextView) findViewById(R.id.new_spot_cat_textView)).setText(preferences.getString(PREF_SPOT_TYPE, ""));
-        ((EditText) findViewById(R.id.new_spot_notes_editText)).setText(preferences.getString(PREF_NOTES, ""));
-        urlSet = preferences.getStringSet(URI_SET, new HashSet<String>());
+
+        ((TextView) findViewById(R.id.new_spot_type_textView)).setText(spotTypeString);
+        //next onResume
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        Log.d(log, "onResume");
         setViewPagerContent();
+        //app's now ready
     }
 
     @Override
-    protected void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
-        Log.d(log, "onSaveInstanceState");
-        SharedPreferences preferences = getSharedPreferences(PREFERENCES, MODE_PRIVATE);
-        SharedPreferences.Editor editor = preferences.edit();
-        editor.putStringSet(URI_SET, urlSet);
-        editor.putString(PREF_SPOT_TYPE, ((TextView) findViewById(R.id.new_spot_cat_textView)).getText().toString().trim());
-        editor.putString(PREF_NOTES, ((EditText) findViewById(R.id.new_spot_notes_editText)).getText().toString().trim());
-        editor.putString(GEOPOINT, new Gson().toJson(geoPoint));
-        editor.apply();
+    protected void onPause() {
+        super.onPause();
+        //next onSaveInstanceState
     }
 
+    /*
+    * save values
+    * */
+    @Override       //After onPause
+    protected void onSaveInstanceState(Bundle outState) {
+        String spotTypeString = ((TextView) findViewById(R.id.new_spot_type_textView)).getText().toString().trim();
+
+        outState.putString(PREF_SPOT_TYPE,spotTypeString);
+        outState.putStringArrayList(URL_LIST, urlList);
+        outState.putStringArrayList(URL_HASH_LIST, urlHashList);
+        outState.putString(GOOGLE_ID, googleId);
+        outState.putString(GEOPOINT, new Gson().toJson(geoPoint));
+        super.onSaveInstanceState(outState);
+    }
+
+    //----------------
+
+    /*
+    * creates the path and file for an image
+    * */
     private Uri getOutputMediaFileUri() {
         return Uri.fromFile(getOutputMediaFile());
     }
 
+    /*
+    * creates a new directory if necessary
+    * */
     private File getOutputMediaFile() {
-
         File mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_PICTURES), "SBO_PHOTOS");
-
+                Environment.DIRECTORY_PICTURES), "SBL_PHOTOS");
         if (!mediaStorageDir.exists()) {
             if (!mediaStorageDir.mkdirs()) {
                 return null;
             }
         }
-
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ENGLISH).format(new Date());
         File mediaFile;
         mediaFile = new File(mediaStorageDir.getPath() + File.separator + "IMG_" + timeStamp + ".jpg");
         return mediaFile;
     }
 
-    @Override
+    /*
+    * sets te menu items in the toolbar
+    * */
+    @Override       //After onRestoreInstanceState
     public boolean onCreateOptionsMenu(Menu menu) {
-        Log.d(log,"onCreateOptionsMenu");
         getMenuInflater().inflate(R.menu.menu_new, menu);
         return true;
     }
 
-
+    /*
+    * called by toolbar item selection
+    *
+    * at least one image needed to create a spot
+    * */
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        Log.d(log,"onOptionsItemSelected");
         switch (item.getItemId()) {
             case android.R.id.home:
                 onBackPressed();
                 return true;
             case R.id.action_create:
-                if ( urlSet.size()>0) {
-                    createDBEntry();
-                } else {
-                    Toast.makeText(this,getString(R.string.take_a_photo_message),Toast.LENGTH_SHORT).show();
+                if ( urlList.size() > 0 ){
+                    showProgressDialog();
+                    startUpload();
                 }
             default:
                 return super.onOptionsItemSelected(item);
         }
     }
 
+    /*
+    * max VIEW_PAGER_MAX_FRAGMENTS images possible
+    * */
     @Override
     public void onClick(View v) {
         switch (v.getId()){
             case R.id.new_spot_cat_layout:
-                catDialog.show();
+                typeDialog.show();
                 break;
             case R.id.new_spot_fab_photo:
-                Log.d(log,"onClick FAB");
-                if ( urlSet.size() < 3 ){
-                    Log.d(log, "adding new uri to list + starting camera");
+                if ( urlList.size() < VIEW_PAGER_MAX_FRAGMENTS ){
                     Uri uri = getOutputMediaFileUri();
-                    urlSet.add(uri.getEncodedPath());
+                    urlList.add(uri.getEncodedPath());
                     Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
                     intent.putExtra(MediaStore.EXTRA_OUTPUT, uri);
-
                     startActivityForResult(intent, CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE);
-                }else {
-                    Log.d(log, "list is full");
                 }
                 break;
         }
     }
 
-    private void createDialogs() {
-        String[] spotTypes = Utilities.getSpotTypes();
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        catDialog = builder.setSingleChoiceItems(spotTypes, 0, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-            }
-        }).setNegativeButton(getString(R.string.cancel), new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                catDialog.cancel();
-            }
-        }).setPositiveButton(getString(R.string.ok), new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                ListView listView = ((AlertDialog) dialog).getListView();
-                Object object = listView.getAdapter().getItem(listView.getCheckedItemPosition());
-                String selection = (String) object;
-                ((TextView) findViewById(R.id.new_spot_cat_textView)).setText(selection);
-            }
-        }).create();
-    }
-
+    /*
+    * called when started camera finishes
+    * */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE) {
@@ -269,154 +248,209 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
         }
     }
 
-//SPOT CREATION METHODS
 
-    private void createDBEntry() {
-        String cat = ((TextView)findViewById(R.id.new_spot_cat_textView)).getText().toString().trim();
-
-        SpotType spotType = Utilities.parseSpotTypeString(cat);
-
-        String notes = ((EditText)findViewById(R.id.new_spot_notes_editText)).getText().toString().trim();
-
-        List<String> urlList = new ArrayList<>();
-        urlList.addAll(urlSet);
-
-        final Spot spot = new Spot(googleId,"-1",geoPoint,notes,urlList,new Date(),spotType);
-
-
-
-        StringRequest stringRequest = new StringRequest(Request.Method.POST,PHP_CREATE_DB_ENTRY,this,this){
-            @Override
-            protected Map<String, String> getParams() throws AuthFailureError {
-                //Creating parameters
-                Map<String,String> params = new Hashtable<String, String>();
-
-                //Adding parameters
-                params.put(KEY_GOOGLE_ID, spot.getGoogleId());
-                params.put(KEY_GEO_POINT, new Gson().toJson(spot.getGeoPoint()));
-                params.put(KEY_SPOT_TYPE, spot.getSpotType().toString());
-                params.put(KEY_NOTES , spot.getNotes());
-                params.put(KEY_TIME, String.valueOf(spot.getDate().getTime()));
-
-                //returning parameters
-                return params;
-            }
-        };
-
-        progressDialog = ProgressDialog.show(this,getString(R.string.creating_db_entry_message),getString(R.string.uploading),false,false);
-        Volley.newRequestQueue(this).add(stringRequest);
-
-    }
-
-
-    public String getStringImage(Bitmap bmp){
-        /*
-        * converts image to string
-        * */
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        bmp.compress(Bitmap.CompressFormat.JPEG, 100, byteArrayOutputStream);
-        byte[] imageBytes = byteArrayOutputStream.toByteArray();
-        String encodedImage = Base64.encodeToString(imageBytes, Base64.DEFAULT);
-        return encodedImage;
-    }
-
-    private void uploadImage(){
-        //Showing the progress dialog
-        StringRequest stringRequest = new StringRequest(Request.Method.POST, PHP_UPLOAD_IMAGE, this, this){
-            @Override
-            protected Map<String, String> getParams() throws AuthFailureError {
-                //Converting Bitmap to String
-                List<String> imageList = new ArrayList<>();
-                for (String url : spot.getUrlList()){
-                    Bitmap bitmap = Utilities.decodeSampledBitmapFromResource(getResources(), url, 400, 400);
-                    imageList.add(getStringImage(bitmap));
-                }
-
-                //Creating parameters
-                Map<String,String> params = new Hashtable<String, String>();
-
-                //Adding parameters
-                params.put(KEY_IMAGE_LIST, new Gson().toJson(imageList));
-                params.put(KEY_ID, spot.getId());
-
-                //returning parameters
-                return params;
-            }
-        };
-
-        //Creating a Request Queue
-        RequestQueue requestQueue = Volley.newRequestQueue(this);
-
-        //Adding request to the queue
-        requestQueue.add(stringRequest);
-    }
-
-    @Override
-    public void onErrorResponse(VolleyError error) {
-        //Dismissing the progress dialog
-        progressDialog.dismiss();
-
-        Log.d(log, error.getMessage());
-        //Showing toast
-        //Toast.makeText(this, error.getMessage().toString(), Toast.LENGTH_LONG).show();
-    }
-
-    @Override
-    public void onResponse(String response) {
-        progressDialog.dismiss();
-
-        Log.d(log+"_error",response);
-        try {
-            JSONObject jsonObject = new JSONObject(response);
-            boolean success = jsonObject.getString("success").equalsIgnoreCase("1");
-            //String message = jsonObject.getString("message");
-            String rowId = jsonObject.getString("rowId");
-            switch (jsonObject.getString("action")){
-                case PHP_ACTION_CREATE_SPOT:
-                    if (success){
-                        spot.setId(rowId);
-                        progressDialog.setTitle(getString(R.string.image_upload_started));
-                        progressDialog.setMessage(getString(R.string.uploading));
-                        progressDialog.show();
-                        uploadImage();
-                    }
-                    break;
-                case PHP_ACTION_IMAGE_UPLOAD:
-                    progressDialog.dismiss();
-                    if(success){
-                        Toast.makeText(this,getString(R.string.spot_created_message),Toast.LENGTH_SHORT).show();
-                        setResult(NEW_SPOT_CREATED);
-                        finish();
-                    }
-                    break;
-            }
-
-
-
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        //Toast.makeText(this, response , Toast.LENGTH_LONG).show();
-
-        //uploadImage(spot);
-    }
-
+    /*
+    * For each image a fragment in the view pager
+    * An adapter cares about the fragments inside the view pager.
+    * */
     private void setViewPagerContent() {
-        Log.d(log, "setViewPagerContent");
-        List<String> imgURLList = new ArrayList<>();
-        imgURLList.addAll(urlSet);
-        for ( String url : imgURLList ){
+        for ( String url : urlList ){
             Bundle page = new Bundle();
             page.putString(IMG_URL, url);
-            Log.d(log,"adding fragment for img: " + url);
             viewPagerFragments.add(Fragment.instantiate(this, GalleryItemFragment.class.getName(), page));
         }
-
-        //after adding all the fragments write the below lines
-
         PagerAdapter mPagerAdapter = new ScreenSlidePagerAdapter(getSupportFragmentManager(), viewPagerFragments);
-
         mPager.setAdapter(mPagerAdapter);
+        mPager.invalidate();
+    }
+
+    /*
+    * creates a list with hash values of the image paths to check if all images are stored on ftp.
+    * server receives on every image upload request image data, db id entry and image path hash value
+    * and sends - among other things - id and hash value back if the upload was successfully.
+    *
+    * converts list to set and back to list to avoid duplicate items
+    * sets can't take redundant values.
+    * */
+    private void createHashList() {
+        Set<String> stringSet = new HashSet<>();
+        stringSet.addAll(urlList);
+        urlList.clear();
+        urlList.addAll(stringSet);
+        for(String urlStr : urlList ){
+            urlHashList.add(String.valueOf(urlStr.hashCode()));
+        }
+    }
+
+    /*
+    * initialises upload process
+    * first db entry and then images
+    * */
+    private void startUpload() {
+        createHashList();
+        String spotTypeString = ((TextView)findViewById(R.id.new_spot_type_textView)).getText().toString().trim();
+        SpotType spotType = Utilities.parseSpotTypeString(spotTypeString);
+        String notes = ((EditText)findViewById(R.id.new_spot_notes_editText)).getText().toString().trim();
+        spot = new Spot(googleId,"",geoPoint,notes,urlList,new Date(),spotType);
+        createDBEntry(spot);
+    }
+
+    /*
+    * volley: create and send db entry request
+    * */
+    private void createDBEntry( final Spot spot ) {
+        StringRequest dbEntryRequest = new StringRequest(Request.Method.POST,PHP_CREATE_DB_ENTRY,this,this){
+            @Override
+            protected Map<String, String> getParams() throws AuthFailureError {
+                Map<String,String> params = new HashMap<>();
+                params.put(PHP_GOOGLE_ID,spot.getGoogleId());
+                params.put(PHP_GEO_POINT,new Gson().toJson(spot.getGeoPoint()));
+                params.put(PHP_SPOT_TYPE,spot.getSpotType().toString());
+                params.put(PHP_NOTES,spot.getNotes());
+                params.put(PHP_IMG_URL_LIST, new Gson().toJson(spot.getUrlList()));
+                params.put(PHP_CREATION_TIME, String.valueOf(spot.getDate().getTime()));
+                return params;
+            }
+        };
+        Volley.newRequestQueue(this).add(dbEntryRequest);
+    }
+
+    /*
+    * volley: creates ands sends image upload requests
+    *
+    * images get resized and converted to strings
+    * */
+    private void startImgUpload() {
+        for (final String imgPath : urlList){
+            StringRequest stringRequest = new StringRequest(Request.Method.POST,PHP_UPLOAD_IMAGE,this,this){
+                @Override
+                protected Map<String, String> getParams() throws AuthFailureError {
+                    Map<String,String> params = new HashMap<>();
+                    Bitmap bitmap = Utilities.decodeSampledBitmapFromResource(getResources(), imgPath, 400, 400);
+                    String image = Utilities.getStringImage(bitmap);
+                    String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ENGLISH).format(new Date());
+                    params.put(PHP_IMAGE_NAME, timeStamp + "_" + spot.getGoogleId() );
+                    params.put(PHP_ID,spot.getId());
+                    params.put(PHP_IMAGE,image);
+                    params.put(PHP_IMAGE_HASH, String.valueOf(imgPath.hashCode()));
+                    return params;
+                }
+            };
+
+            Volley.newRequestQueue(this).add(stringRequest);
+        }
+    }
+
+    /*
+    * volley: called by error
+    * */
+    @Override
+    public void onErrorResponse(VolleyError error) {
+        Toast.makeText(this,error.getMessage(),Toast.LENGTH_LONG).show();
+        progressDialog.dismiss();
+    }
+
+    /*
+    * volley: response from server
+    * */
+    @Override
+    public void onResponse(String response) {
+        try {
+            JSONObject jsonResponse = new JSONObject(response);
+            String message = jsonResponse.getString(PHP_MESSAGE);
+            String action = jsonResponse.getString(PHP_ACTION);
+            String id = jsonResponse.getString(PHP_ID);
+            boolean success = jsonResponse.getString(PHP_SUCCESS).equalsIgnoreCase("1");
+
+            if ( action.equalsIgnoreCase(DB_ACTION.CREATE_SPOT.toString()) && success){
+                /*
+                * db entry created starting upload
+                * */
+                spot.setId(id);
+                showImgUploadProgress();
+                startImgUpload();
+
+            }else if ( action.equalsIgnoreCase(DB_ACTION.IMAGE_UPLOAD.toString()) && success){
+                /*
+                * -image uploaded
+                * -check and remove hash set entry
+                * -update progress bar
+                * -show toast if it was the last response
+                * */
+                String responseImgHash = jsonResponse.getString(PHP_IMAGE_HASH);
+                Iterator<String> iterator = urlHashList.iterator();
+                while(iterator.hasNext()){
+                    String hashString = iterator.next();
+                    if ( hashString.equalsIgnoreCase(responseImgHash)){
+                        urlHashList.remove(hashString);
+                    }
+                }
+
+                showImgUploadProgress();
+
+                if (urlHashList.isEmpty()){
+                    progressDialog.dismiss();
+                    Toast.makeText(this,getString(R.string.spot_created_message),Toast.LENGTH_SHORT).show();
+                    /*
+                    Intent returnIntent = new Intent();
+                    setResult(NEW_SPOT_CREATED, returnIntent);
+                    finish();
+                    */
+                }
+
+            }else {
+                /*
+                * no success
+                * dismissing dialog
+                * */
+                Log.d(log,response);
+                progressDialog.dismiss();
+
+            }
+        } catch (JSONException e) {
+            /*
+            * json error
+            * */
+            Log.d(log,e.getMessage());
+            Log.d(log,response);
+        }
+    }
+
+    // DIALOGS
+
+    private void createDialogs() {
+        String[] spotTypes = Utilities.getSpotTypes();
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        typeDialog = builder.setSingleChoiceItems(spotTypes, 0, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+            }
+        }).setNegativeButton(getString(R.string.cancel), new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                typeDialog.cancel();
+            }
+        }).setPositiveButton(getString(R.string.ok), new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                ListView listView = ((AlertDialog) dialog).getListView();
+                Object object = listView.getAdapter().getItem(listView.getCheckedItemPosition());
+                String selection = (String) object;
+                ((TextView) findViewById(R.id.new_spot_type_textView)).setText(selection);
+            }
+        }).create();
+    }
+
+    private void showProgressDialog() {
+        progressDialog = ProgressDialog.show(this
+                , getString(R.string.creating_spot_progressTitle)
+                , getString(R.string.creating_db_entry_message),
+                true);
+    }
+
+    private void showImgUploadProgress() {
+        progressDialog.setTitle(getString(R.string.image_upload_started));
+        progressDialog.setMessage(urlHashList.size() + " " + getString(R.string.images_left_message));
     }
 }
 

@@ -1,5 +1,10 @@
 package rickpat.spotboy.utilities;
 
+import com.google.gson.reflect.TypeToken;
+
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+
 public class Constants {
 
     private Constants(){}
@@ -20,41 +25,44 @@ public class Constants {
     public static final int HUB_SHOW_ON_MAP = 402;
     public static final int HUB_MODIFIED_DATASET = 403;
 
-    public static final int KML_ACTIVITY_REQUEST = 501;
-    public static final int KML_ACTIVITY_RESULT_LOAD = 502;
-    public static final int KML_ACTIVITY_RESULT_CREATE = 503;
-    public static final int KML_ACTIVITY_RESULT_REMOVE = 504;
+    public static final int KML_REQUEST = 501;
+    public static final int KML_RESULT_LOAD = 502;
+    public static final int KML_RESULT_CREATE = 503;
+    public static final int KML_RESULT_REMOVE = 504;
 
-    public static final int KML_LOAD_ACTIVITY_REQUEST = 601;
-    public static final int KML_LOAD_ACTIVITY_RESULT = 602;
+    public static final int CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE = 100;
 
     public static final String GOOGLE_NAME ="GOOGLE_NAME";
     public static final String GOOGLE_ID = "GOOGLE_ID";
 
-    public static final String PREFERENCES = "PREFERENCES";
+    public static String PREFERENCES = "PREFERENCES";
+    public static String PREF_SPOT_TYPE = "PREF_SPOT_TYPE";
+    public static String PREF_NOTES = "PREF_NOTES";
+    public static String GEOPOINT = "GEOPOINT";
+    public static String ZOOM_LEVEL = "ZOOM_LEVEL";
+    public static String MODIFIED = "MODIFIED";
+
     public static final String CACHED_LAST_FIX = "CACHED_LAST_FIX";
-    public static final String MODIFIED = "MODIFIED";
 
     public static final String CACHED_MAP_CAMERA_GEOPOINT = "CACHED_MAP_CAMERA_GEOPOINT";
     public static final String CACHED_MAP_CAMERA_ZOOM = "CACHED_MAP_CAMERA_ZOOM";
 
-    public static final String GEOPOINT = "GEOPOINT";
+
     public static final String NO_GPS = "NO_GPS";
-    public static final String SPOT = "SPOT";
     public static final String TIME_FORMAT = "HH:mm";
 
-
-    public static final String KML_URL = "KML_URL";
     public static final String KML_FILE = "KML_FILE";
 
-    public static final String URI_SET ="URI_SET";
-
     public static final String IMG_URL = "IMG_URL";
-
-
-    public static final String PHP_ACTION_CREATE_SPOT ="CREATE_SPOT";
-    public static final String PHP_ACTION_IMAGE_UPLOAD ="IMAGE_UPLOAD";
+    public static final String URL_LIST = "URL_LIST";
+    public static final String URL_HASH_LIST = "URL_HASH_LIST";
+    public static final String SPOT = "SPOT";
 
     public static final int VIEW_PAGER_MAX_FRAGMENTS = 3;
+
+    public static final String TIME_FORMAT_INFO = "EEE, dd MMM yyyy HH:mm:ss z";
+
+    public static Type LIST_TYPE = new TypeToken<ArrayList<String>>() {
+    }.getType();
 
 }

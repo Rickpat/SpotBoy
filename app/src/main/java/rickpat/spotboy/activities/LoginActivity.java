@@ -43,7 +43,6 @@ public class LoginActivity extends AppCompatActivity implements
     private ProgressDialog mProgressDialog;
     private ImageView mUserIconImageView;
 
-    private String googleName;
     private String googleId;
 
     private String log = "LoginActivity";
@@ -141,6 +140,7 @@ public class LoginActivity extends AppCompatActivity implements
     // [START handleSignInResult]
     private void handleSignInResult(GoogleSignInResult result) {
         Log.d(TAG, "handleSignInResult:" + result.isSuccess());
+        String googleName;
         if (result.isSuccess()) {
             // Signed in successfully, show authenticated UI.
             GoogleSignInAccount acct = result.getSignInAccount();
@@ -231,7 +231,6 @@ public class LoginActivity extends AppCompatActivity implements
             case R.id.login_ok_button:
                 //Online Mode
                 Intent intentSigned = new Intent(this,Online_MainActivity.class);
-                intentSigned.putExtra(Constants.GOOGLE_NAME,googleName);
                 intentSigned.putExtra(Constants.GOOGLE_ID, googleId);
                 startActivityForResult(intentSigned, Constants.MAIN_ACTIVITY_SIGNED_REQUEST);
                 break;

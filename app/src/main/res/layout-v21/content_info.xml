@@ -102,7 +102,7 @@
     </LinearLayout>
 
     <android.support.design.widget.FloatingActionButton
-        android:id="@+id/info_cat_fab_edit"
+        android:id="@+id/info_type_fab_edit"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_margin="16dp"

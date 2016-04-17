@@ -1,6 +1,5 @@
 package rickpat.spotboy.offline_fragments;
 
-import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.util.Log;
@@ -12,7 +11,7 @@ import android.widget.ImageView;
 import com.bumptech.glide.Glide;
 
 import rickpat.spotboy.R;
-import rickpat.spotboy.utilities.Utilities;
+
 
 import static rickpat.spotboy.utilities.Constants.IMG_URL;
 
@@ -35,7 +34,7 @@ public class GalleryItemFragment extends Fragment {
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        ViewGroup rootView = (ViewGroup) inflater.inflate(R.layout.galley_item, container, false);
+        ViewGroup rootView = (ViewGroup) inflater.inflate(R.layout.gallery_item, container, false);
         ImageView imageView = (ImageView) rootView.findViewById(R.id.gallery_imageView);
         Glide.with(this).load(imgURL).into(imageView);
         return rootView;

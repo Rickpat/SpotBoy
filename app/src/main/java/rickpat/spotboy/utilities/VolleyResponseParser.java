@@ -2,35 +2,65 @@ package rickpat.spotboy.utilities;
 
 
 import android.util.Log;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.osmdroid.util.GeoPoint;
 
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import rickpat.spotboy.R;
 import rickpat.spotboy.enums.SpotType;
 import rickpat.spotboy.spotspecific.Spot;
 
 import static rickpat.spotboy.utilities.SpotBoy_Server_Constants.*;
-import static rickpat.spotboy.utilities.Constants.LIST_TYPE;
 
 public class VolleyResponseParser {
     private VolleyResponseParser(){}
     private static String log  = "VolleyResponseParser";
 
+    /*
+    * parser for volley get spots response
+    * calls createSpotList if result contains spots and query was successful
+    * */
     public static List<Spot> parseVolleySpotListResponse(JSONObject jsonObject){
+        Log.d(log,jsonObject.toString());
         List<Spot> spotList = new ArrayList<>();
         try {
             boolean success = jsonObject.getString(PHP_SUCCESS).equalsIgnoreCase("1");
             String message = jsonObject.getString(PHP_MESSAGE);
+            String resultCode = jsonObject.getString(PHP_RESULT_CODE);
+
+            if (success) {
+                switch (resultCode) {
+                    case PHP_RESULT_SQL_SUCCESS_ITEMS:
+                        spotList = createSpotList(jsonObject);
+                        break;
+                    case PHP_RESULT_SQL_SUCCESS_NO_ITEMS:
+                        Log.d(log,message);
+                        break;
+                    case PHP_RESULT_REQUIRED_FIELDS_MISSING:
+                        Log.d(log,message);
+                        break;
+                }
+            }
+
+        } catch (JSONException e) {
+            Log.d(log,e.getMessage());
+        }
+        return spotList;
+    }
+
+    private static List<Spot> createSpotList( JSONObject jsonObject){
+        List<Spot> spotList = new ArrayList<>();
+        try {
             JSONArray spotArray = jsonObject.getJSONArray(PHP_SPOT_ARRAY);
             int size = spotArray.length();
             for ( int i = 0 ; size > i ; i ++){
@@ -45,7 +75,6 @@ public class VolleyResponseParser {
                 Spot spot = new Spot(googleId,id,geoPoint,notes,imgURLList,creationTime,spotType);
                 spotList.add(spot);
             }
-
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -64,5 +93,55 @@ public class VolleyResponseParser {
             e.printStackTrace();
         }
         return imgPathList;
+    }
+
+    public static boolean parseDeleteSpotResult(String response) {
+        boolean success = false;
+        try {
+            JSONObject jsonObject = new JSONObject(response);
+            success = jsonObject.getString(PHP_SUCCESS).equalsIgnoreCase("1");
+            String message = jsonObject.getString(PHP_MESSAGE);
+            String resultCode = jsonObject.getString(PHP_RESULT_CODE);
+            switch (resultCode){
+                case PHP_RESULT_SPOT_DELETED:
+                    break;
+                case PHP_RESULT_REQUIRED_FIELDS_MISSING:
+                    break;
+            }
+
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return success;
+    }
+
+    public static boolean parseSpotUpdateResult( String response ){
+        boolean success = false;
+        try {
+            JSONObject jsonResponse = new JSONObject(response);
+            success = jsonResponse.getString(PHP_SUCCESS).equalsIgnoreCase("1");
+            String message = jsonResponse.getString(PHP_MESSAGE);
+            String resultCode = jsonResponse.getString(PHP_RESULT_CODE);
+            String id = jsonResponse.getString(PHP_ID);
+            Log.d(log, "spot id: " + id + "message: " + message);
+            switch (resultCode){
+                case PHP_RESULT_NOTES_UPDATED:
+                    Log.d(log,"notes update");
+                    break;
+                case PHP_RESULT_SPOT_TYPE_UPDATED:
+                    Log.d(log,"spot type update");
+                    break;
+                case PHP_RESULT_REQUIRED_FIELDS_MISSING:
+                    Log.d(log,"fields missing");
+                    break;
+                default:
+                    Log.d(log,"unknown result code");
+            }
+
+        } catch (JSONException e) {
+            Log.d(log,e.getMessage());
+        }
+        return success;
     }
 }

@@ -1,27 +1,15 @@
 package rickpat.spotboy.osmspecific;
 
 import android.app.Activity;
-import android.content.res.Resources;
-import android.graphics.Bitmap;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
-
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.ImageRequest;
-import com.android.volley.toolbox.Volley;
 import com.bumptech.glide.Glide;
 
 import rickpat.spotboy.R;
 import rickpat.spotboy.spotspecific.Spot;
 import rickpat.spotboy.spotspecific.SpotMarker;
-import rickpat.spotboy.utilities.Utilities;
-
 import org.osmdroid.bonuspack.overlays.InfoWindow;
 import org.osmdroid.views.MapView;
 

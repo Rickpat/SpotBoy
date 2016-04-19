@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.design.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".activities.AboutActivity">
+
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/scrollView" >
+
+        <android.support.v7.widget.CardView
+            xmlns:card_view="http://schemas.android.com/apk/res-auto"
+            android:id="@+id/card_view"
+            android:layout_gravity="center"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            card_view:cardCornerRadius="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:layout_margin="@dimen/cardview_content_margin_all">
+
+                <ImageView
+                    android:layout_width="@dimen/about_logo_dimen"
+                    android:layout_height="@dimen/about_logo_dimen"
+                    android:id="@+id/imageView"
+                    android:contentDescription="@string/default_content_description"
+                    android:layout_gravity="center_horizontal"
+                    android:background="@drawable/ic_spotboylogo"
+                    android:layout_margin="@dimen/about_logo_margin" />
+
+                <me.grantland.widget.AutofitTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:singleLine="true"
+                    android:maxLines="1"
+                    android:textSize="@dimen/title"
+                    android:text="@string/app_name"
+                    android:layout_gravity="center_horizontal"
+                    android:padding="@dimen/about_text_padding"
+                    android:id="@+id/about_app_title" />
+
+                <me.grantland.widget.AutofitTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:singleLine="true"
+                    android:maxLines="1"
+                    android:textSize="@dimen/subheading"
+                    android:text="@string/credits"
+                    android:layout_gravity="center_horizontal"
+                    android:padding="@dimen/about_text_padding" />
+
+                <me.grantland.widget.AutofitTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:singleLine="true"
+                    android:maxLines="1"
+                    android:textSize="@dimen/caption"
+                    android:text="@string/creation_time"
+                    android:layout_gravity="center_horizontal"
+                    android:padding="@dimen/about_text_padding" />
+
+                <Button
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/libraries"
+                    android:textSize="@dimen/button"
+                    android:id="@+id/about_libraries_button"
+                    android:layout_gravity="center_horizontal"
+                    style="?android:attr/borderlessButtonStyle"/>
+            </LinearLayout>
+        </android.support.v7.widget.CardView>
+
+    </ScrollView>
+
+
+</android.support.design.widget.CoordinatorLayout>

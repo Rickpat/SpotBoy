@@ -20,7 +20,7 @@ import rickpat.spotboy.utilities.SpotHubAdapter;
 import static rickpat.spotboy.utilities.Constants.*;
 
 /*
-* HubActivity shows all spots in database in an recycler view with card views
+* HubActivity shows all spots from local database in an recycler view with card views
 * An Adapter cares about the recyclers content.
 * */
 

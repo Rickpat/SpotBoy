@@ -60,6 +60,7 @@ import rickpat.spotboy.utilities.Utilities;
 import static rickpat.spotboy.utilities.Constants.*;
 import static rickpat.spotboy.utilities.SpotBoy_Server_Constants.*;
 
+//// TODO: 4/18/2016 zeige progress dialog bis neuer pfad eingetroffen ist.
 
 
 public class Online_NewActivity extends AppCompatActivity implements View.OnClickListener, Response.ErrorListener, Response.Listener<String> {
@@ -132,6 +133,7 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
     protected void onResume() {
         super.onResume();
         setViewPagerContent();
+        Log.d(log, urlList.size() + " paths in list");
         //app's now ready
     }
 
@@ -254,7 +256,9 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
     * An adapter cares about the fragments inside the view pager.
     * */
     private void setViewPagerContent() {
+        removeRedundantPaths();
         for ( String url : urlList ){
+            Log.d(log,"fragments gets url:" + url);
             Bundle page = new Bundle();
             page.putString(IMG_URL, url);
             viewPagerFragments.add(Fragment.instantiate(this, GalleryItemFragment.class.getName(), page));
@@ -273,13 +277,23 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
     * sets can't take redundant values.
     * */
     private void createHashList() {
+        removeRedundantPaths();
+        for(String urlStr : urlList ){
+            urlHashList.add(String.valueOf(urlStr.hashCode()));
+        }
+    }
+
+    /*
+    *
+    * */
+    private void removeRedundantPaths() {
+        Log.d(log,"removeRedundantPaths");
+        Log.d(log, "before: " + urlList.size());
         Set<String> stringSet = new HashSet<>();
         stringSet.addAll(urlList);
         urlList.clear();
         urlList.addAll(stringSet);
-        for(String urlStr : urlList ){
-            urlHashList.add(String.valueOf(urlStr.hashCode()));
-        }
+        Log.d(log, "after: " + urlList.size());
     }
 
     /*
@@ -360,17 +374,28 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
             String message = jsonResponse.getString(PHP_MESSAGE);
             String action = jsonResponse.getString(PHP_ACTION);
             String id = jsonResponse.getString(PHP_ID);
+            String resultCode = jsonResponse.getString(PHP_RESULT_CODE);
             boolean success = jsonResponse.getString(PHP_SUCCESS).equalsIgnoreCase("1");
 
-            if ( action.equalsIgnoreCase(DB_ACTION.CREATE_SPOT.toString()) && success){
+            if ( action.equalsIgnoreCase(DB_ACTION.CREATE_SPOT.toString())){
                 /*
                 * db entry created starting upload
                 * */
-                spot.setId(id);
-                showImgUploadProgress();
-                startImgUpload();
+                if (success){
+                    spot.setId(id);
+                    showImgUploadProgress();
+                    startImgUpload();
+                }else{
+                    switch (resultCode){
+                        case PHP_RESULT_SQL_ERROR:
+                            Log.d(log,"sql error, message: " + message );
+                            break;
+                        default:
+                            Log.d(log,"unknown resultCode: " + resultCode + " message: " + message);
+                    }
+                }
 
-            }else if ( action.equalsIgnoreCase(DB_ACTION.IMAGE_UPLOAD.toString()) && success){
+            }else if ( action.equalsIgnoreCase(DB_ACTION.IMAGE_UPLOAD.toString())){
                 /*
                 * -image uploaded
                 * -check and remove hash set entry
@@ -378,24 +403,24 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
                 * -show toast if it was the last response
                 * */
                 String responseImgHash = jsonResponse.getString(PHP_IMAGE_HASH);
-                Iterator<String> iterator = urlHashList.iterator();
-                while(iterator.hasNext()){
-                    String hashString = iterator.next();
-                    if ( hashString.equalsIgnoreCase(responseImgHash)){
-                        urlHashList.remove(hashString);
+                if(success) {
+                    for (int i = urlHashList.size() ; i > 0 ; i-- ){
+                        if ( urlHashList.get(i).equalsIgnoreCase(responseImgHash) ){
+                            urlHashList.remove(i);
+                        }
                     }
-                }
 
-                showImgUploadProgress();
+                    showImgUploadProgress();
 
-                if (urlHashList.isEmpty()){
-                    progressDialog.dismiss();
-                    Toast.makeText(this,getString(R.string.spot_created_message),Toast.LENGTH_SHORT).show();
+                    if (urlHashList.isEmpty()) {
+                        progressDialog.dismiss();
+                        Toast.makeText(this, getString(R.string.spot_created_message), Toast.LENGTH_SHORT).show();
                     /*
                     Intent returnIntent = new Intent();
                     setResult(NEW_SPOT_CREATED, returnIntent);
                     finish();
                     */
+                    }
                 }
 
             }else {
@@ -403,7 +428,27 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
                 * no success
                 * dismissing dialog
                 * */
-                Log.d(log,response);
+                //// TODO: 4/18/2016 check resultCode..switch case..
+                Log.d(log,message);
+                switch (resultCode){
+                    case PHP_RESULT_FTP_LOGIN_FAIL:
+                        Log.d(log,resultCode);
+                        break;
+                    case PHP_RESULT_SQL_SUCCESS_NO_ITEMS:
+                        Log.d(log,resultCode);
+                        break;
+                    case PHP_RESULT_SQL_ERROR:
+                        Log.d(log,resultCode);
+                        break;
+                    case PHP_RESULT_REQUIRED_FIELDS_MISSING:
+                        Log.d(log,resultCode);
+                        break;
+                    default:
+                        Log.d(log,"unknown resultcode: " + resultCode);
+                }
+
+
+                Log.d(log,resultCode);
                 progressDialog.dismiss();
 
             }

@@ -38,12 +38,9 @@ import static rickpat.spotboy.utilities.Constants.*;
 * content loaded from remote spot boy database by volley
 * */
 
-public class HubMainFragment extends Fragment implements SpotHubAdapter.IHubAdapter, Response.ErrorListener, Response.Listener<JSONObject>{
+public class HubMainFragment extends Fragment implements SpotHubAdapter.IHubAdapter,ISpotFragment{
 
-    private RecyclerView mRecyclerView;
     private SpotHubAdapter mAdapter;
-    private RecyclerView.LayoutManager mLayoutManager;
-    private String googleId;
     private List<Spot> spotList;
     
     private String log = "HUB_MAIN_FRAGMENT";
@@ -57,7 +54,6 @@ public class HubMainFragment extends Fragment implements SpotHubAdapter.IHubAdap
 
     @Override
     public void onSaveInstanceState(Bundle outState) {
-        outState.putString(GOOGLE_ID, googleId);
         super.onSaveInstanceState(outState);
         Log.d(log, "onSaveInstanceState");
         //app's off
@@ -77,8 +73,8 @@ public class HubMainFragment extends Fragment implements SpotHubAdapter.IHubAdap
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         Log.d(log,"onCreateView");
         View rootView = inflater.inflate(R.layout.content_hub_main_fragment, container, false);
-        mRecyclerView = (RecyclerView) rootView.findViewById(R.id.hub_main_recycler_view);
-        mLayoutManager = new LinearLayoutManager(this.getContext());
+        RecyclerView mRecyclerView = (RecyclerView) rootView.findViewById(R.id.hub_main_recycler_view);
+        RecyclerView.LayoutManager mLayoutManager = new LinearLayoutManager(this.getContext());
         mAdapter = new SpotHubAdapter(spotList,this);
         mRecyclerView.setLayoutManager(mLayoutManager);
         mRecyclerView.setAdapter(mAdapter);
@@ -107,16 +103,14 @@ public class HubMainFragment extends Fragment implements SpotHubAdapter.IHubAdap
 
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
-        Log.d(log,"onActivityCreated");
+        Log.d(log, "onActivityCreated");
         super.onActivityCreated(savedInstanceState);
-        //googleId = savedInstanceState.getString(GOOGLE_ID);
     }
 
     private void loadSpots() {
-        Log.d(log,"loadSpots");
-        String uri = SpotBoy_Server_Constants.PHP_GET_ALL_SPOTS;
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, uri, null,this,this);
-        Volley.newRequestQueue(this.getContext()).add(request);
+        Log.d(log, "loadSpots");
+        spotList = ((IHub)getActivity()).getSpotList();
+        mAdapter.updateList(spotList);
     }
 
     @Override
@@ -141,18 +135,6 @@ public class HubMainFragment extends Fragment implements SpotHubAdapter.IHubAdap
         getActivity().finish();
     }
 
-    @Override
-    public void onErrorResponse(VolleyError error) {
-        Log.d(log, error.getMessage());
-    }
-
-    @Override
-    public void onResponse(JSONObject response) {
-        Log.d(log,"onResponse");
-        spotList = VolleyResponseParser.parseVolleySpotListResponse(response);
-        mAdapter.updateList(spotList);
-    }
-
     /*
     * todo reload specific spot not all
     * */
@@ -172,5 +154,11 @@ public class HubMainFragment extends Fragment implements SpotHubAdapter.IHubAdap
                     loadSpots();
             }
         }
+    }
+
+    @Override
+    public void contentUpdate() {
+        Log.d(log,"contentUpdate");
+        loadSpots();
     }
 }

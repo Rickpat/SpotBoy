@@ -1,41 +1,19 @@
 package rickpat.spotboy.utilities;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Matrix;
-import android.graphics.Point;
 import android.graphics.drawable.Drawable;
-import android.os.Build;
 import android.support.v4.content.res.ResourcesCompat;
 import android.util.Base64;
-import android.util.Log;
-import android.view.Display;
-
-
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.osmdroid.util.GeoPoint;
 
 import rickpat.spotboy.enums.Library;
 import rickpat.spotboy.enums.SpotType;
 import rickpat.spotboy.R;
-import rickpat.spotboy.spotspecific.Spot;
 
 import java.io.ByteArrayOutputStream;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
 
 public class Utilities {
     private static String log = "UTILITIES";

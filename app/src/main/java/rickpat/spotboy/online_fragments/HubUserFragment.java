@@ -44,12 +44,9 @@ import static rickpat.spotboy.utilities.Constants.SPOT;
 * it's mainly the same as HubMainFragment. The only difference is, that the received list gets filtered by logged googleId
 * */
 
-public class HubUserFragment extends Fragment  implements SpotHubAdapter.IHubAdapter, Response.ErrorListener, Response.Listener<JSONObject>{
+public class HubUserFragment extends Fragment  implements SpotHubAdapter.IHubAdapter,ISpotFragment{
 
-    private RecyclerView mRecyclerView;
     private SpotHubAdapter mAdapter;
-    private RecyclerView.LayoutManager mLayoutManager;
-    private String googleId;
     private List<Spot> spotList;
 
     private String log = "HUB_USER_FRAGMENT";
@@ -63,7 +60,6 @@ public class HubUserFragment extends Fragment  implements SpotHubAdapter.IHubAda
 
     @Override
     public void onSaveInstanceState(Bundle outState) {
-        outState.putString(GOOGLE_ID, googleId);
         super.onSaveInstanceState(outState);
         Log.d(log, "onSaveInstanceState");
         //app's off
@@ -83,8 +79,8 @@ public class HubUserFragment extends Fragment  implements SpotHubAdapter.IHubAda
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         Log.d(log,"onCreateView");
         View rootView = inflater.inflate(R.layout.content_hub_user_fragment, container, false);
-        mRecyclerView = (RecyclerView) rootView.findViewById(R.id.hub_user_recycler_view);
-        mLayoutManager = new LinearLayoutManager(this.getContext());
+        RecyclerView mRecyclerView = (RecyclerView) rootView.findViewById(R.id.hub_user_recycler_view);
+        RecyclerView.LayoutManager mLayoutManager = new LinearLayoutManager(this.getContext());
         mAdapter = new SpotHubAdapter(spotList,this);
         mRecyclerView.setLayoutManager(mLayoutManager);
         mRecyclerView.setAdapter(mAdapter);
@@ -115,21 +111,18 @@ public class HubUserFragment extends Fragment  implements SpotHubAdapter.IHubAda
     public void onActivityCreated(Bundle savedInstanceState) {
         Log.d(log, "onActivityCreated");
         super.onActivityCreated(savedInstanceState);
-        //googleId = savedInstanceState.getString(GOOGLE_ID);
     }
 
     private void loadSpots() {
-        Log.d(log, "loadSpots");
-        String uri = SpotBoy_Server_Constants.PHP_GET_ALL_SPOTS;
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, uri, null,this,this);
-        Volley.newRequestQueue(this.getContext()).add(request);
+        spotList = ((IHub)getActivity()).getSpotList();
+        filterList();
+        mAdapter.updateList(spotList);
     }
 
     @Override
     public void moreButtonCallback(Spot spot) {
         Log.d(log, "moreButtonCallback");
         String googleId = ((IHub)getActivity()).getUserGoogleId();
-
         Intent infoIntent = new Intent(this.getContext(),Online_InfoActivity.class);
         infoIntent.putExtra(SPOT,new Gson().toJson(spot));
         infoIntent.putExtra(GOOGLE_ID,googleId);
@@ -147,28 +140,14 @@ public class HubUserFragment extends Fragment  implements SpotHubAdapter.IHubAda
         getActivity().finish();
     }
 
-    @Override
-    public void onErrorResponse(VolleyError error) {
-        Log.d(log, error.getMessage());
-    }
-
-    @Override
-    public void onResponse(JSONObject response) {
-        Log.d(log,"onResponse");
-        spotList = VolleyResponseParser.parseVolleySpotListResponse(response);
-        filterList();
-        mAdapter.updateList(spotList);
-    }
-
     private void filterList() {
-        Iterator<Spot> spotIterator = spotList.iterator();
-        while(spotIterator.hasNext()){
-            Spot spot = spotIterator.next();
-            if (spot.getGoogleId().equalsIgnoreCase(googleId)){
-                spotList.remove(spot);
+        String googleId = ((IHub)getActivity()).getUserGoogleId();
+
+        for ( int i = spotList.size(); i > 0 ; i--){
+            if (!spotList.get(i-1).getGoogleId().equalsIgnoreCase(googleId)){
+                spotList.remove(spotList.get(i));
             }
         }
-
     }
 
     /*
@@ -183,12 +162,18 @@ public class HubUserFragment extends Fragment  implements SpotHubAdapter.IHubAda
             switch (resultCode){
                 case INFO_ACTIVITY_SPOT_DELETED:
                     Log.d(log, "INFO_ACTIVITY_SPOT_DELETED");
-                    loadSpots();
+                    ((IHub)getActivity()).updateList();
                     break;
                 case INFO_ACTIVITY_SPOT_MODIFIED:
                     Log.d(log, "INFO_ACTIVITY_SPOT_MODIFIED");
-                    loadSpots();
+                    ((IHub)getActivity()).updateList();
             }
         }
+    }
+
+    @Override
+    public void contentUpdate() {
+        Log.d(log,"contentUpdate");
+        loadSpots();
     }
 }

@@ -70,21 +70,14 @@ public class Online_MainActivity extends AppCompatActivity implements MapEventsR
     * */
     @Override   //after onPause
     protected void onSaveInstanceState(Bundle outState) {
+        if ( kmlFile != null ) {
+            outState.putString(KML_FILE, new Gson().toJson(kmlFile));
+        }
+        outState.putString(GOOGLE_ID,googleId);
+        outState.putString(GEOPOINT, new Gson().toJson(map.getMapCenter()));
+        outState.putInt(ZOOM_LEVEL, map.getZoomLevel());
         super.onSaveInstanceState(outState);
         Log.d(log, "onSaveInstanceState");
-        SharedPreferences preferences = getSharedPreferences(PREFERENCES, MODE_PRIVATE);
-        SharedPreferences.Editor editor = preferences.edit();
-        if ( kmlFile != null ) {
-            editor.putString(KML_FILE, new Gson().toJson(kmlFile));
-        } else {
-            if (preferences.contains(KML_FILE)){
-                editor.remove(KML_FILE);
-            }
-        }
-        editor.putString(GOOGLE_ID,googleId);
-        editor.putString(GEOPOINT, new Gson().toJson(map.getMapCenter()));
-        editor.putInt(ZOOM_LEVEL, map.getZoomLevel());
-        editor.apply();
     }
 
     /*
@@ -134,15 +127,12 @@ public class Online_MainActivity extends AppCompatActivity implements MapEventsR
     * */
     @Override
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        kmlFile = new Gson().fromJson(savedInstanceState.getString(KML_FILE,""),File.class);
+        map.getController().setCenter(new Gson().fromJson(savedInstanceState.getString(GEOPOINT, ""), GeoPoint.class));
+        map.getController().setZoom(savedInstanceState.getInt(ZOOM_LEVEL, 18));
+        googleId = savedInstanceState.getString(GOOGLE_ID,"-1");
         super.onRestoreInstanceState(savedInstanceState);
         Log.d(log, "onRestoreInstanceState");
-        SharedPreferences preferences = getSharedPreferences(PREFERENCES, MODE_PRIVATE);
-        googleId = preferences.getString(GOOGLE_ID,"-1");
-        if (preferences.contains(KML_FILE)){
-            kmlFile = new Gson().fromJson(preferences.getString(KML_FILE,""),File.class);
-        }
-        map.getController().setCenter(new Gson().fromJson(preferences.getString(GEOPOINT, ""), GeoPoint.class));
-        map.getController().setZoom(preferences.getInt(ZOOM_LEVEL, 18));
         //next onResume()
     }
 
@@ -166,7 +156,7 @@ public class Online_MainActivity extends AppCompatActivity implements MapEventsR
      * - HubActivity
      * - InfoActivity
      * - AboutActivity      // not necessary
-     * - SettingsActivity   //todo
+     * - SettingsActivity   // not implemented yet
     * */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -494,7 +484,7 @@ public class Online_MainActivity extends AppCompatActivity implements MapEventsR
     @Override
     public void onResponse(JSONObject response) {
         Log.d(log,"onResonse: " + response);
-        List<Spot> spotList = new ArrayList<>();
+        List<Spot> spotList;
         spotList = VolleyResponseParser.parseVolleySpotListResponse(response);
         createAllClusters(spotList);
     }

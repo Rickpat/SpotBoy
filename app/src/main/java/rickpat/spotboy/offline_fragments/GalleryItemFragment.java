@@ -15,6 +15,12 @@ import rickpat.spotboy.R;
 
 import static rickpat.spotboy.utilities.Constants.IMG_URL;
 
+
+/*
+* container for images.
+* loads image from sd card or ftp into image view
+* */
+
 public class GalleryItemFragment extends Fragment {
 
     private String log = "GalleryItemFragment";

@@ -42,15 +42,6 @@ public class Constants {
     public static String ZOOM_LEVEL = "ZOOM_LEVEL";
     public static String MODIFIED = "MODIFIED";
 
-    public static final String CACHED_LAST_FIX = "CACHED_LAST_FIX";
-
-    public static final String CACHED_MAP_CAMERA_GEOPOINT = "CACHED_MAP_CAMERA_GEOPOINT";
-    public static final String CACHED_MAP_CAMERA_ZOOM = "CACHED_MAP_CAMERA_ZOOM";
-
-
-    public static final String NO_GPS = "NO_GPS";
-    public static final String TIME_FORMAT = "HH:mm";
-
     public static final String KML_FILE = "KML_FILE";
 
     public static final String IMG_URL = "IMG_URL";

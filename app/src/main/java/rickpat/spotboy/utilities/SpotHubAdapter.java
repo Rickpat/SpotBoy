@@ -21,6 +21,10 @@ import java.util.List;
 import rickpat.spotboy.R;
 import rickpat.spotboy.spotspecific.Spot;
 
+/*
+* adapter for spot hub recycler view. cares about card views
+* */
+
 public class SpotHubAdapter extends RecyclerView.Adapter<SpotHubAdapter.ViewHolder> {
     private List<Spot> spotList;
     private IHubAdapter callback;

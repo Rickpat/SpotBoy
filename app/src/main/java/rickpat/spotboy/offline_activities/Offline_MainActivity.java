@@ -87,20 +87,13 @@ public class Offline_MainActivity extends AppCompatActivity implements MapEvents
     * */
     @Override   //after onPause
     protected void onSaveInstanceState(Bundle outState) {
+        if ( kmlFile != null ) {
+            outState.putString(KML_FILE, new Gson().toJson(kmlFile));
+        }
+        outState.putString(GEOPOINT, new Gson().toJson(map.getMapCenter()));
+        outState.putInt(ZOOM_LEVEL, map.getZoomLevel());
         super.onSaveInstanceState(outState);
         Log.d(log, "onSaveInstanceState");
-        SharedPreferences preferences = getSharedPreferences(PREFERENCES, MODE_PRIVATE);
-        SharedPreferences.Editor editor = preferences.edit();
-        if ( kmlFile != null ) {
-            editor.putString(KML_FILE, new Gson().toJson(kmlFile));
-        } else {
-            if (preferences.contains(KML_FILE)){
-                editor.remove(KML_FILE);
-            }
-        }
-        editor.putString(GEOPOINT, new Gson().toJson(map.getMapCenter()));
-        editor.putInt(ZOOM_LEVEL, map.getZoomLevel());
-        editor.apply();
     }
 
     /*
@@ -145,14 +138,11 @@ public class Offline_MainActivity extends AppCompatActivity implements MapEvents
     * */
     @Override
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        kmlFile = new Gson().fromJson(savedInstanceState.getString(KML_FILE,""),File.class);
+        map.getController().setCenter(new Gson().fromJson(savedInstanceState.getString(GEOPOINT, ""), GeoPoint.class));
+        map.getController().setZoom(savedInstanceState.getInt(ZOOM_LEVEL, 18));
         super.onRestoreInstanceState(savedInstanceState);
         Log.d(log, "onRestoreInstanceState");
-        SharedPreferences preferences = getSharedPreferences(PREFERENCES, MODE_PRIVATE);
-        if (preferences.contains(KML_FILE)){
-            kmlFile = new Gson().fromJson(preferences.getString(KML_FILE,""),File.class);
-        }
-        map.getController().setCenter(new Gson().fromJson(preferences.getString(GEOPOINT, ""), GeoPoint.class));
-        map.getController().setZoom(preferences.getInt(ZOOM_LEVEL, 18));
         //next onResume()
     }
 
@@ -176,7 +166,7 @@ public class Offline_MainActivity extends AppCompatActivity implements MapEvents
      * - HubActivity
      * - InfoActivity
      * - AboutActivity      // not necessary
-     * - SettingsActivity   //todo
+     * - SettingsActivity   // not implemented yet
     * */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {

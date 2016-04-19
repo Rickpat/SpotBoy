@@ -38,7 +38,7 @@ import static rickpat.spotboy.utilities.Constants.*;
 * InfoActivity shows detailed information about the spot.
 * It shows the captured images on top in an view pager.
 *
-* Notes and SpotType are editable by AlertDialogs.
+* Notes and spot type are editable by AlertDialogs.
 *
 * */
 
@@ -49,7 +49,7 @@ public class Offline_InfoActivity extends AppCompatActivity implements View.OnCl
     private AlertDialog spotTypeAlertDialog;
     private AlertDialog notesAlertDialog;
     /*
-    * The view pager that contains fragments. for each taken spot picture it creates a fragment
+    * The view pager that contains fragments. for each taken photo it creates a fragment
     * which works as a container.
     * */
     private ViewPager mPager;
@@ -62,10 +62,8 @@ public class Offline_InfoActivity extends AppCompatActivity implements View.OnCl
 
     @Override   //after onPause
     protected void onSaveInstanceState(Bundle outState) {
+        outState.putBoolean(MODIFIED,modified);
         super.onSaveInstanceState(outState);
-        SharedPreferences.Editor editor = getSharedPreferences(PREFERENCES,MODE_PRIVATE).edit();
-        editor.putBoolean(MODIFIED, modified);
-        editor.apply();
     }
 
     @Override   //first call
@@ -97,8 +95,7 @@ public class Offline_InfoActivity extends AppCompatActivity implements View.OnCl
     @Override   //after onCreate if screen orientation changed
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
-        SharedPreferences preferences = getSharedPreferences(PREFERENCES, MODE_PRIVATE);
-        modified = preferences.getBoolean(MODIFIED,false);
+        modified = savedInstanceState.getBoolean(MODIFIED);
         if (modified){
             SpotBoyDBHelper spotBoyDBHelper = new SpotBoyDBHelper(Offline_InfoActivity.this, null, null, 1);
             spot = spotBoyDBHelper.getMultipleImagesSpot(spot.getId());

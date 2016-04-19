@@ -7,6 +7,10 @@ import android.view.ViewGroup;
 
 import java.util.List;
 
+/*
+* adapter for view pager with in e.g. InfoActivity or NewActivity
+* */
+
 public class ScreenSlidePagerAdapter extends FragmentStatePagerAdapter {
 
     private List<Fragment> fragmentList;

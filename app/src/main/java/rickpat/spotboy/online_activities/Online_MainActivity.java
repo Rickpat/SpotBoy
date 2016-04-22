@@ -2,7 +2,7 @@ package rickpat.spotboy.online_activities;
 
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.SharedPreferences;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.support.design.widget.CoordinatorLayout;
 import android.support.design.widget.FloatingActionButton;
@@ -15,27 +15,22 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 
-import com.android.volley.Request;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.JsonObjectRequest;
-import com.android.volley.toolbox.Volley;
 import com.google.gson.Gson;
 
 import rickpat.spotboy.activities.AboutActivity;
 import rickpat.spotboy.R;
 import rickpat.spotboy.activities.KMLActivity;
+import rickpat.spotboy.restful_broadcast_receiver.AllSpotsBroadcastReceiver;
+import rickpat.spotboy.restful_post_services.interfaces.IAllSpots;
 import rickpat.spotboy.enums.SpotType;
 import rickpat.spotboy.osmspecific.MyPositionOverlay;
-import rickpat.spotboy.osmspecific.Offline_SpotInfoWindow;
 import rickpat.spotboy.osmspecific.Online_SpotInfoWindow;
 import rickpat.spotboy.osmspecific.SpotCluster;
+import rickpat.spotboy.restful_post_services.GetAllSpots_Service;
 import rickpat.spotboy.spotspecific.Spot;
 import rickpat.spotboy.spotspecific.SpotMarker;
 import rickpat.spotboy.utilities.Utilities;
-import rickpat.spotboy.utilities.VolleyResponseParser;
 
-import org.json.JSONObject;
 import org.osmdroid.bonuspack.kml.KmlDocument;
 import org.osmdroid.bonuspack.overlays.FolderOverlay;
 import org.osmdroid.bonuspack.overlays.MapEventsOverlay;
@@ -46,14 +41,12 @@ import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
 import static rickpat.spotboy.utilities.Constants.*;
-import static rickpat.spotboy.utilities.SpotBoy_Server_Constants.PHP_GET_ALL_SPOTS;
 
-public class Online_MainActivity extends AppCompatActivity implements MapEventsReceiver, Online_SpotInfoWindow.InfoCallback, Response.ErrorListener, Response.Listener<JSONObject> {
+public class Online_MainActivity extends AppCompatActivity implements MapEventsReceiver, Online_SpotInfoWindow.InfoCallback,IAllSpots {
 
     private String log = "MainActivity_LOG";
     private MyPositionOverlay myPositionOverlay;            //shows the users position
@@ -64,6 +57,7 @@ public class Online_MainActivity extends AppCompatActivity implements MapEventsR
     private File kmlFile;                                   //a kml file. its default -> null
     private FolderOverlay kmlOverlay;                       //KML layer
     private String googleId;                                //users google id. nothing else needed
+    private AllSpotsBroadcastReceiver receiver;             //Called by GetAllSpots_Service. Uses IAllSpots callback
 
     /*
     * saves states
@@ -92,6 +86,7 @@ public class Online_MainActivity extends AppCompatActivity implements MapEventsR
         myPositionOverlay.disableMyLocation();
         removeAllClusters();
         removeKMLOverlay();
+        unregisterReceiver(receiver);
     }
 
     @Override   //first call
@@ -107,6 +102,7 @@ public class Online_MainActivity extends AppCompatActivity implements MapEventsR
             Log.d(log,googleId);
         }
         clusterHashMap = new HashMap<>();
+        receiver = new AllSpotsBroadcastReceiver(this);
         setMap();
         setMarkerDialog();
         setFloatingActionButton();
@@ -145,7 +141,7 @@ public class Online_MainActivity extends AppCompatActivity implements MapEventsR
         super.onResume();
         Log.d(log, "onResume");
         myPositionOverlay.enableMyLocation();
-        loadSpotsFromDatabase();
+        startGetAllSpotsService();
         createKMLOverlay();
         //now activity is running till onPause
     }
@@ -470,22 +466,29 @@ public class Online_MainActivity extends AppCompatActivity implements MapEventsR
         startActivityForResult(infoIntent, INFO_ACTIVITY_REQUEST);
     }
 
-    private void loadSpotsFromDatabase() {
-        //todo volley request
-        JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.POST,PHP_GET_ALL_SPOTS,null,this,this);
-        Volley.newRequestQueue(this).add(jsonObjectRequest);
+    /*
+    * start service to get spots from server
+    * */
+    private void startGetAllSpotsService() {
+        registerReceiver(receiver, new IntentFilter(NOTIFICATION));
+        Intent getSpotsIntent = new Intent(this, GetAllSpots_Service.class);
+        startService(getSpotsIntent);
     }
 
+    /*
+    * callback from AllSpotsBroadcastReceiver
+    * */
     @Override
-    public void onErrorResponse(VolleyError error) {
-        Log.d(log,"volley error: " + error.getMessage());
-    }
-
-    @Override
-    public void onResponse(JSONObject response) {
-        Log.d(log,"onResonse: " + response);
-        List<Spot> spotList;
-        spotList = VolleyResponseParser.parseVolleySpotListResponse(response);
+    public void setSpotList(List<Spot> spotList) {
         createAllClusters(spotList);
+    }
+
+    /*
+    * callback for AllSpotsBroadcastReceiver
+    * called on http request fail
+    * */
+    @Override
+    public void errorCallback(String message) {
+        Log.d(log,"errorCallback: " + message);
     }
 }

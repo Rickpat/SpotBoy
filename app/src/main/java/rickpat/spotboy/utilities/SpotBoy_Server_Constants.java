@@ -5,6 +5,7 @@ public class SpotBoy_Server_Constants {
     private SpotBoy_Server_Constants(){}
 
     public static final String PHP_GET_ALL_SPOTS = "http://rickpat.bplaced.net/SpotBoyPHP/getSpots.php";
+    public static final String PHP_GET_SPOT = "http://rickpat.bplaced.net/SpotBoyPHP/getSpot.php";
     public static final String PHP_UPLOAD_IMAGE = "http://rickpat.bplaced.net/SpotBoyPHP/imageUpload.php";
     public static final String PHP_CREATE_DB_ENTRY = "http://rickpat.bplaced.net/SpotBoyPHP/createSpot.php";
     public static final String PHP_UPDATE_DB_ENTRY = "http://rickpat.bplaced.net/SpotBoyPHP/updateSpot.php";

@@ -2,6 +2,8 @@ package rickpat.spotboy.online_activities;
 
 import android.app.ProgressDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.view.PagerAdapter;
@@ -16,49 +18,39 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Toast;
 
-import com.android.volley.AuthFailureError;
-import com.android.volley.Request;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
 import com.google.gson.Gson;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Vector;
 
 import rickpat.spotboy.R;
 import rickpat.spotboy.offline_fragments.GalleryItemFragment;
+import rickpat.spotboy.restful_broadcast_receiver.DeleteSpotBroadcastReceiver;
+import rickpat.spotboy.restful_broadcast_receiver.UpdateSpotBroadcastReceiver;
+import rickpat.spotboy.restful_post_services.interfaces.IDelete;
+import rickpat.spotboy.restful_post_services.interfaces.IUpdate;
+import rickpat.spotboy.restful_post_services.DeleteSpot_Service;
+import rickpat.spotboy.restful_post_services.GetSpot_Service;
+import rickpat.spotboy.restful_post_services.UpdateSpot_Service;
 import rickpat.spotboy.spotspecific.Spot;
-import rickpat.spotboy.utilities.DB_ACTION;
 import rickpat.spotboy.utilities.ScreenSlidePagerAdapter;
 import rickpat.spotboy.utilities.Utilities;
-import rickpat.spotboy.utilities.VolleyResponseParser;
 
 import static rickpat.spotboy.utilities.Constants.GOOGLE_ID;
-import static rickpat.spotboy.utilities.Constants.GOOGLE_NAME;
 import static rickpat.spotboy.utilities.Constants.IMG_URL;
 import static rickpat.spotboy.utilities.Constants.INFO_ACTIVITY_SPOT_DELETED;
 import static rickpat.spotboy.utilities.Constants.INFO_ACTIVITY_SPOT_MODIFIED;
+import static rickpat.spotboy.utilities.Constants.NOTIFICATION;
 import static rickpat.spotboy.utilities.Constants.SPOT;
 
 import static rickpat.spotboy.utilities.Constants.TIME_FORMAT_INFO;
 import static rickpat.spotboy.utilities.Constants.VIEW_PAGER_MAX_FRAGMENTS;
-import static rickpat.spotboy.utilities.SpotBoy_Server_Constants.*;
 
-public class Online_InfoActivity extends AppCompatActivity implements View.OnClickListener, Response.Listener<String>, Response.ErrorListener {
+public class Online_InfoActivity extends AppCompatActivity implements View.OnClickListener,IDelete,IUpdate {
 
     private Spot spot;
 
@@ -71,6 +63,9 @@ public class Online_InfoActivity extends AppCompatActivity implements View.OnCli
     private boolean hasAccess = false;
     private boolean isModified = false;
     private ProgressDialog progressDialog;
+
+    private DeleteSpotBroadcastReceiver deleteReceiver;
+    private UpdateSpotBroadcastReceiver updateReceiver;
 
 
     @Override
@@ -97,6 +92,8 @@ public class Online_InfoActivity extends AppCompatActivity implements View.OnCli
 
         mPager = (ViewPager) findViewById(R.id.info_viewPager);
         viewPagerFragments = new Vector<>(VIEW_PAGER_MAX_FRAGMENTS);
+        updateReceiver = new UpdateSpotBroadcastReceiver(this);
+        deleteReceiver = new DeleteSpotBroadcastReceiver(this);
     }
 
     @Override   //after onCreate
@@ -122,12 +119,17 @@ public class Online_InfoActivity extends AppCompatActivity implements View.OnCli
         setContent();
         setViewPagerContent();
         if (hasAccess){setDialogs();}
+
+        registerReceiver(updateReceiver, new IntentFilter(NOTIFICATION));
+        registerReceiver(deleteReceiver, new IntentFilter(NOTIFICATION));
         //app's ready now
     }
 
     @Override
     protected void onPause() {
         super.onPause();
+        unregisterReceiver(deleteReceiver);
+        unregisterReceiver(updateReceiver);
     }
 
     @Override
@@ -194,7 +196,7 @@ public class Online_InfoActivity extends AppCompatActivity implements View.OnCli
                         Object object = listView.getAdapter().getItem(listView.getCheckedItemPosition());
                         final String selectedSpotType = (String) object;
                         progressDialog = ProgressDialog.show(Online_InfoActivity.this,getString(R.string.sending),getString(R.string.new_spot_information),false,false);
-                        createSpotTypeRequest(selectedSpotType);
+                        updateSpotTypeRequest(selectedSpotType);
                     }
                 }).create();
 
@@ -208,40 +210,27 @@ public class Online_InfoActivity extends AppCompatActivity implements View.OnCli
                 .setPositiveButton(getText(R.string.ok), new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
+                        progressDialog = ProgressDialog.show(Online_InfoActivity.this,getString(R.string.sending),getString(R.string.new_spot_information),false,false);
                         final String notes = editText.getText().toString().trim();
                         createUpdateNotesRequest(notes);
                     }
                 }).create();
     }
 
-    private void createSpotTypeRequest( final String selectedSpotType ){
-        StringRequest stringRequest = new StringRequest(Request.Method.POST, PHP_UPDATE_DB_ENTRY, this,this){
-            @Override
-            protected Map<String, String> getParams() throws AuthFailureError {
-                Map<String,String> params = new HashMap<String, String>();
-                Log.d(log,"getParams()... spotType: " + selectedSpotType + " id: " + spot.getId());
-                params.put(PHP_SPOT_TYPE,selectedSpotType);
-                params.put(PHP_ID,spot.getId());
-                return params;
-            }
-        };
-        Volley.newRequestQueue(this).add(stringRequest);
-
+    private void updateSpotTypeRequest(final String selectedSpotType){
+        Log.d(log, "new spot type: " + selectedSpotType + " id: " + spot.getId());
+        Intent updateIntent = new Intent(this, UpdateSpot_Service.class);
+        updateIntent.putExtra(UpdateSpot_Service.SPOT_ID,spot.getId());
+        updateIntent.putExtra(UpdateSpot_Service.SPOT_TYPE,selectedSpotType);
+        startService(updateIntent);
     }
 
     private void createUpdateNotesRequest(final String notes) {
-        Log.d(log, "new notes: " + notes);
-        progressDialog = ProgressDialog.show(Online_InfoActivity.this,getString(R.string.sending),getString(R.string.new_spot_information),false,false);
-        StringRequest stringRequest = new StringRequest(Request.Method.POST, PHP_UPDATE_DB_ENTRY, this,this){
-            @Override
-            protected Map<String, String> getParams() throws AuthFailureError {
-                Map<String,String> params = new HashMap<String, String>();
-                params.put(PHP_NOTES,notes);
-                params.put(PHP_ID,spot.getId());
-                return params;
-            }
-        };
-        Volley.newRequestQueue(this).add(stringRequest);
+        Log.d(log, "new notes: " + notes + " id: " + spot.getId());
+        Intent updateIntent = new Intent(this, UpdateSpot_Service.class);
+        updateIntent.putExtra(UpdateSpot_Service.SPOT_ID,spot.getId());
+        updateIntent.putExtra(UpdateSpot_Service.NOTES,notes);
+        startService(updateIntent);
     }
 
     @Override
@@ -275,15 +264,9 @@ public class Online_InfoActivity extends AppCompatActivity implements View.OnCli
     }
 
     private void deleteSpot() {
-        StringRequest stringRequest = new StringRequest(Request.Method.POST, PHP_DELETE_DB_ENTRY, this, this){
-            @Override
-            protected Map<String, String> getParams() throws AuthFailureError {
-                Map<String,String> params = new HashMap<>();
-                params.put(PHP_ID,spot.getId());
-                return params;
-            }
-        };
-        Volley.newRequestQueue(this).add(stringRequest);
+        Intent serviceIntent = new Intent(this, DeleteSpot_Service.class);
+        serviceIntent.putExtra(DeleteSpot_Service.SPOT_ID,spot.getId());
+        startService(serviceIntent);
     }
 
     public int getSelection(String[] catItems) {
@@ -309,51 +292,44 @@ public class Online_InfoActivity extends AppCompatActivity implements View.OnCli
         }
     }
 
-    @Override
-    public void onResponse(String response) {
-        progressDialog.dismiss();
-        Log.d(log,"delete spot response: " + response);
-        String action = "action";
-        String resultCode = "000";
-        String value = "value";
-        try {
-            JSONObject jsonObject = new JSONObject(response);
-            action = jsonObject.getString(PHP_ACTION);
-            resultCode = jsonObject.getString(PHP_RESULT_CODE);
-            value = jsonObject.getString(PHP_VALUE);
-            Log.d(log,"ACTION: " + action + " RESULT CODE: " + resultCode + " VALUE: " + value);
-        } catch (JSONException e) {
-            StringWriter sw = new StringWriter();
-            e.printStackTrace(new PrintWriter(sw));
-            String exceptionDetails = sw.toString();
-            Log.d(log,exceptionDetails);
-        }
 
-        if (action.equalsIgnoreCase(DB_ACTION.DELETE_SPOT.toString())) {
-            if (VolleyResponseParser.parseDeleteSpotResult(response)) {
-                setResult(INFO_ACTIVITY_SPOT_DELETED);
-                finish();
-            }
-        }else if( action.equalsIgnoreCase(DB_ACTION.UPDATE_SPOT.toString())){
-            if (VolleyResponseParser.parseSpotUpdateResult(response)) {
-                isModified = true;
-                Log.d(log,"update content");
-                switch (resultCode) {
-                    case PHP_RESULT_NOTES_UPDATED:
-                        spot.setNotes(value);
-                        ((TextView)findViewById(R.id.info_notesTextView)).setText(spot.getNotes());
-                        break;
-                    case PHP_RESULT_SPOT_TYPE_UPDATED:
-                        spot.setSpotType(Utilities.parseSpotTypeString(value));
-                        ((TextView)findViewById(R.id.info_catTextView)).setText(spot.getSpotType().toString());
-                        break;
-                }
-            }
+    @Override
+    public void deleteCallback(boolean success) {
+        Log.d(log,"deleteCallback success: " + success);
+        if (success){
+            setResult(INFO_ACTIVITY_SPOT_DELETED);
+            finish();
         }
     }
 
+    /*
+    * callback from by IUpdate. called by UpdateSpotBroadcastReceiver
+    * */
     @Override
-    public void onErrorResponse(VolleyError error) {
-        Log.d(log,"onErrorResponse: " + error);
+    public void setNotes(String value) {
+        progressDialog.dismiss();
+        isModified = true;
+        spot.setNotes(value);
+        ((TextView)findViewById(R.id.info_notesTextView)).setText(spot.getNotes());
+    }
+
+    /*
+    * callback from by IUpdate. called by UpdateSpotBroadcastReceiver
+    * */
+    @Override
+    public void setSpotType(String value) {
+        progressDialog.dismiss();
+        isModified = true;
+        spot.setSpotType(Utilities.parseSpotTypeString(value));
+        ((TextView)findViewById(R.id.info_catTextView)).setText(spot.getSpotType().toString());
+    }
+
+    /*
+    * callback from by IUpdate. called by UpdateSpotBroadcastReceiver
+    * */
+    @Override
+    public void errorCallback(String message) {
+        progressDialog.dismiss();
+        Log.d(log,"errorCallback" + message);
     }
 }

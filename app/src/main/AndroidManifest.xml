@@ -96,6 +96,12 @@
         </activity>
 
 
+        <service android:name=".restful_post_services.GetSpot_Service"/>
+        <service android:name=".restful_post_services.GetAllSpots_Service"/>
+        <service android:name=".restful_post_services.DeleteSpot_Service"/>
+        <service android:name=".restful_post_services.UpdateSpot_Service"/>
+
+
     </application>
 
 </manifest>

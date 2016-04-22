@@ -1,7 +1,8 @@
 package rickpat.spotboy.online_activities;
 
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
-import android.os.PersistableBundle;
 import android.support.design.widget.TabLayout;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
@@ -11,28 +12,19 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.MenuItem;
-import android.widget.Toast;
-
-import com.android.volley.Request;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.JsonObjectRequest;
-import com.android.volley.toolbox.Volley;
-
-import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import rickpat.spotboy.R;
-import rickpat.spotboy.offline_database.SpotBoyDBHelper;
 import rickpat.spotboy.online_fragments.HubMainFragment;
 import rickpat.spotboy.online_fragments.HubUserFragment;
 import rickpat.spotboy.online_fragments.IHub;
 import rickpat.spotboy.online_fragments.ISpotFragment;
+import rickpat.spotboy.restful_broadcast_receiver.AllSpotsBroadcastReceiver;
+import rickpat.spotboy.restful_post_services.interfaces.IAllSpots;
+import rickpat.spotboy.restful_post_services.GetAllSpots_Service;
 import rickpat.spotboy.spotspecific.Spot;
-import rickpat.spotboy.utilities.SpotBoy_Server_Constants;
-import rickpat.spotboy.utilities.VolleyResponseParser;
 
 import static rickpat.spotboy.utilities.Constants.*;
 
@@ -42,16 +34,18 @@ import static rickpat.spotboy.utilities.Constants.*;
 * Each tab manages a recycler view with card views.
 * */
 
-public class Online_HubActivity extends AppCompatActivity implements IHub, Response.ErrorListener, Response.Listener<JSONObject> {
+public class Online_HubActivity extends AppCompatActivity implements IHub,IAllSpots {
 
     private String log = "Online_HubActivity";
     private String googleId;
     private List<Spot> spotList;
     private ViewPagerAdapter adapter;
+    private AllSpotsBroadcastReceiver receiver;             //Called by GetAllSpots_Service. Uses IAllSpots callback
 
     @Override
     protected void onPause() {
         super.onPause();
+        unregisterReceiver(receiver);
         //next onRestoreInstanceState
     }
 
@@ -79,6 +73,7 @@ public class Online_HubActivity extends AppCompatActivity implements IHub, Respo
         }else{
             finish();
         }
+        receiver = new AllSpotsBroadcastReceiver(this);
 
         ViewPager viewPager = (ViewPager) findViewById(R.id.hub_viewpager);
         setupViewPager(viewPager);
@@ -105,27 +100,23 @@ public class Online_HubActivity extends AppCompatActivity implements IHub, Respo
     @Override
     protected void onResume() {
         super.onResume();
-        loadSpots();
+        startGetAllSpotsService();
         //app's ready now
     }
 
-    private void loadSpots() {
-        String uri = SpotBoy_Server_Constants.PHP_GET_ALL_SPOTS;
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, uri, null,this,this);
-        Volley.newRequestQueue(this).add(request);
+    private void startGetAllSpotsService() {
+        registerReceiver(receiver, new IntentFilter(NOTIFICATION));
+        Intent getSpotsIntent = new Intent(this, GetAllSpots_Service.class);
+        startService(getSpotsIntent);
     }
 
+    /*
+    * callback from AllSpotsBroadcastReceiver
+    * */
     @Override
-    public void onErrorResponse(VolleyError error) {
-        Log.d(log, "volley error: " + error.getMessage());
-    }
-
-    @Override
-    public void onResponse(JSONObject response) {
-        Log.d(log,"onResponse");
-        spotList = VolleyResponseParser.parseVolleySpotListResponse(response);
+    public void setSpotList(List<Spot> spotList) {
+        this.spotList = spotList;
         adapter.notifyDataSetChanged();
-
     }
 
     @Override
@@ -157,14 +148,29 @@ public class Online_HubActivity extends AppCompatActivity implements IHub, Respo
         return googleId;
     }
 
+    /*
+    * callback for AllSpotsBroadcastReceiver
+    * */
     @Override
     public List<Spot> getSpotList() {
         return spotList;
     }
 
+    /*
+    * callback for AllSpotsBroadcastReceiver
+    * called on http request fail
+    * */
+    @Override
+    public void errorCallback(String message) {
+        Log.d(log,"errorCallback: " + message);
+    }
+
+    /*
+    * callback for fragments in tab host
+    * */
     @Override
     public void updateList() {
-        loadSpots();
+        startGetAllSpotsService();
     }
 
     /*

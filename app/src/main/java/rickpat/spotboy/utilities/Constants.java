@@ -53,7 +53,9 @@ public class Constants {
 
     public static final String TIME_FORMAT_INFO = "EEE, dd MMM yyyy HH:mm:ss z";
 
-    public static Type LIST_TYPE = new TypeToken<ArrayList<String>>() {
-    }.getType();
+    //FOR SERVICE RESPONSE INTENT FILTER
+    public static String NOTIFICATION = "rickpat.spotboy";
+    public static String BROADCAST = "BROADCAST";
+    public static String JSON_OBJECT_RESPONSE = "JSON_OBJECT_RESPONSE";
 
 }

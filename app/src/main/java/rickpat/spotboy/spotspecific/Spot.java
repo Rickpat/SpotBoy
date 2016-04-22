@@ -2,12 +2,13 @@ package rickpat.spotboy.spotspecific;
 
 import org.osmdroid.util.GeoPoint;
 
+import java.io.Serializable;
 import java.util.Date;
 import java.util.List;
 
 import rickpat.spotboy.enums.SpotType;
 
-public class Spot {
+public class Spot implements Serializable {
 
     /*
     * Base class
@@ -107,4 +108,8 @@ public class Spot {
     public void setSpotType(SpotType spotType) {
         this.spotType = spotType;
     }
+
+
+
+
 }

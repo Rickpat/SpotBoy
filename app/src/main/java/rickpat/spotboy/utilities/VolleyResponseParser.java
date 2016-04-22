@@ -116,15 +116,20 @@ public class VolleyResponseParser {
         return success;
     }
 
-    public static boolean parseSpotUpdateResult( String response ){
-        boolean success = false;
+
+    /*
+    * @param value = null if not updated
+    * */
+    public static String parseSpotUpdateResult( String response ){
+        String value = null;
         try {
             JSONObject jsonResponse = new JSONObject(response);
-            success = jsonResponse.getString(PHP_SUCCESS).equalsIgnoreCase("1");
+            boolean success = jsonResponse.getString(PHP_SUCCESS).equalsIgnoreCase("1");
             String message = jsonResponse.getString(PHP_MESSAGE);
             String resultCode = jsonResponse.getString(PHP_RESULT_CODE);
             String id = jsonResponse.getString(PHP_ID);
-            Log.d(log, "spot id: " + id + "message: " + message);
+            value = jsonResponse.getString(PHP_VALUE);
+            Log.d(log,"spot id: " + id + " message: " + message + " success: " + success);
             switch (resultCode){
                 case PHP_RESULT_NOTES_UPDATED:
                     Log.d(log,"notes update");
@@ -142,6 +147,6 @@ public class VolleyResponseParser {
         } catch (JSONException e) {
             Log.d(log,e.getMessage());
         }
-        return success;
+        return value;
     }
 }

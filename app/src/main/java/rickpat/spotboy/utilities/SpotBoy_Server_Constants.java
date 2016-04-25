@@ -37,6 +37,7 @@ public class SpotBoy_Server_Constants {
     //php get spots codes
     public static final String PHP_RESULT_SQL_SUCCESS_ITEMS = "101";
     public static final String PHP_RESULT_SQL_SUCCESS_NO_ITEMS = "102";
+    public static final String PHP_SPOT_NOT_FOUND_CODE = "999";
     //create spot codes
 
     //delete spot codes

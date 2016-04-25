@@ -36,6 +36,8 @@ public class DeleteSpotBroadcastReceiver extends BroadcastReceiver {
                 String responseString = intent.getExtras().getString(JSON_OBJECT_RESPONSE);
                 boolean success = VolleyResponseParser.parseDeleteSpotResult(responseString);
                 callback.deleteCallback(success);
+            }else {
+                callback.errorCallback("delete request fail");
             }
         }
     }

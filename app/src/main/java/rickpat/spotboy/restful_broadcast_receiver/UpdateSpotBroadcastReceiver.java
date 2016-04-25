@@ -52,6 +52,8 @@ public class UpdateSpotBroadcastReceiver extends BroadcastReceiver {
                 } else {
                     callback.errorCallback(" value == null ");
                 }
+            } else {
+                callback.errorCallback("update request fail");
             }
         }
     }

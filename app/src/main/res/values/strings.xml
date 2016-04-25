@@ -71,4 +71,5 @@
     <string name="remove_current_kml_overlay">remove current kml</string>
     <string name="creating_spot_progressTitle">creating spot</string>
     <string name="images_left_message">image(s) left</string>
+    <string name="please_wait_message">please wait...</string>
 </resources>

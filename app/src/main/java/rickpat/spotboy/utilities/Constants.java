@@ -36,8 +36,8 @@ public class Constants {
     public static final String GOOGLE_ID = "GOOGLE_ID";
 
     public static String PREFERENCES = "PREFERENCES";
-    public static String PREF_SPOT_TYPE = "PREF_SPOT_TYPE";
-    public static String PREF_NOTES = "PREF_NOTES";
+    public static String SPOT_TYPE = "SPOT_TYPE";
+    public static String NOTES = "NOTES";
     public static String GEOPOINT = "GEOPOINT";
     public static String ZOOM_LEVEL = "ZOOM_LEVEL";
     public static String MODIFIED = "MODIFIED";
@@ -57,5 +57,6 @@ public class Constants {
     public static String NOTIFICATION = "rickpat.spotboy";
     public static String BROADCAST = "BROADCAST";
     public static String JSON_OBJECT_RESPONSE = "JSON_OBJECT_RESPONSE";
+    public static String SERVICE_RESULT_CODE = "SERVICE_RESULT_CODE";
 
 }

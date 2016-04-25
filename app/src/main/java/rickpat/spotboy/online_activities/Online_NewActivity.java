@@ -4,7 +4,7 @@ package rickpat.spotboy.online_activities;
 import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.graphics.Bitmap;
+import android.content.IntentFilter;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -24,57 +24,54 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.android.volley.AuthFailureError;
-import com.android.volley.Request;
 import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
 import com.google.gson.Gson;
 
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.osmdroid.util.GeoPoint;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
 
 import rickpat.spotboy.R;
 import rickpat.spotboy.enums.SpotType;
 import rickpat.spotboy.offline_fragments.GalleryItemFragment;
+import rickpat.spotboy.restful_broadcast_receiver.CreateSpotBroadcastReceiver;
+import rickpat.spotboy.restful_post_services.CreateSpot_Service;
+import rickpat.spotboy.restful_post_services.interfaces.ICreateSpot;
 import rickpat.spotboy.spotspecific.Spot;
-import rickpat.spotboy.utilities.DB_ACTION;
 import rickpat.spotboy.utilities.ScreenSlidePagerAdapter;
 import rickpat.spotboy.utilities.Utilities;
 
 import static rickpat.spotboy.utilities.Constants.*;
-import static rickpat.spotboy.utilities.SpotBoy_Server_Constants.*;
 
 //// TODO: 4/18/2016 zeige progress dialog bis neuer pfad eingetroffen ist.
 
 
-public class Online_NewActivity extends AppCompatActivity implements View.OnClickListener, Response.ErrorListener, Response.Listener<String> {
+public class Online_NewActivity extends AppCompatActivity implements ICreateSpot,View.OnClickListener {
 
     private AlertDialog typeDialog;             //spot type dialog
     private GeoPoint geoPoint;                  //spot coordinates
     private ViewPager mPager;                   //container for images
     private ArrayList<String> urlList;          //paths of takes images
-    private ArrayList<String> urlHashList;      //hash list of the image paths to check upload status
     private List<Fragment> viewPagerFragments;  //every fragment takes an image
     private String log = "NEW_ACTIVITY";
     private Spot spot;                          //container for all spot related infomation
     private String googleId;                    //creators googleId
     private ProgressDialog progressDialog;      //shows upload progress
+    private CreateSpotBroadcastReceiver broadcastReceiver; //receiver for create spot service
+
+    @Override
+    protected void onDestroy() {
+        unregisterReceiver(broadcastReceiver);
+        super.onDestroy();
+    }
 
     @Override   //first
     protected void onCreate(Bundle savedInstanceState) {
@@ -97,7 +94,7 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
             finish();
         }
         urlList = new ArrayList<>();
-        urlHashList = new ArrayList<>();
+        broadcastReceiver = new CreateSpotBroadcastReceiver(this);
 
         findViewById(R.id.new_spot_cat_layout).setOnClickListener(this);
         findViewById(R.id.new_spot_fab_photo).setOnClickListener(this);
@@ -110,6 +107,7 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
     @Override   //After onCreate
     protected void onStart() {
         super.onStart();
+        registerReceiver(broadcastReceiver, new IntentFilter(NOTIFICATION));
         //next onRestoreInstanceState or onResume
     }
 
@@ -119,10 +117,9 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
     @Override       //After onStart... but not on first start
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
         urlList = savedInstanceState.getStringArrayList(URL_LIST);
-        urlHashList = savedInstanceState.getStringArrayList(URL_HASH_LIST);
         googleId = savedInstanceState.getString(GOOGLE_ID);
         geoPoint = new Gson().fromJson(savedInstanceState.getString(GEOPOINT, "zero"), GeoPoint.class);
-        String spotTypeString = savedInstanceState.getString(PREF_SPOT_TYPE);
+        String spotTypeString = savedInstanceState.getString(SPOT_TYPE);
         super.onRestoreInstanceState(savedInstanceState);
 
         ((TextView) findViewById(R.id.new_spot_type_textView)).setText(spotTypeString);
@@ -150,9 +147,8 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
     protected void onSaveInstanceState(Bundle outState) {
         String spotTypeString = ((TextView) findViewById(R.id.new_spot_type_textView)).getText().toString().trim();
 
-        outState.putString(PREF_SPOT_TYPE,spotTypeString);
+        outState.putString(SPOT_TYPE,spotTypeString);
         outState.putStringArrayList(URL_LIST, urlList);
-        outState.putStringArrayList(URL_HASH_LIST, urlHashList);
         outState.putString(GOOGLE_ID, googleId);
         outState.putString(GEOPOINT, new Gson().toJson(geoPoint));
         super.onSaveInstanceState(outState);
@@ -207,7 +203,8 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
             case R.id.action_create:
                 if ( urlList.size() > 0 ){
                     showProgressDialog();
-                    startUpload();
+                    createSpot();
+                return true;
                 }
             default:
                 return super.onOptionsItemSelected(item);
@@ -269,25 +266,10 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
     }
 
     /*
-    * creates a list with hash values of the image paths to check if all images are stored on ftp.
-    * server receives on every image upload request image data, db id entry and image path hash value
-    * and sends - among other things - id and hash value back if the upload was successfully.
-    *
-    * converts list to set and back to list to avoid duplicate items
-    * sets can't take redundant values.
-    * */
-    private void createHashList() {
-        removeRedundantPaths();
-        for(String urlStr : urlList ){
-            urlHashList.add(String.valueOf(urlStr.hashCode()));
-        }
-    }
-
-    /*
     *
     * */
     private void removeRedundantPaths() {
-        Log.d(log,"removeRedundantPaths");
+        Log.d(log, "removeRedundantPaths");
         Log.d(log, "before: " + urlList.size());
         Set<String> stringSet = new HashSet<>();
         stringSet.addAll(urlList);
@@ -300,165 +282,21 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
     * initialises upload process
     * first db entry and then images
     * */
-    private void startUpload() {
-        createHashList();
+    private void createSpot() {
         String spotTypeString = ((TextView)findViewById(R.id.new_spot_type_textView)).getText().toString().trim();
         SpotType spotType = Utilities.parseSpotTypeString(spotTypeString);
         String notes = ((EditText)findViewById(R.id.new_spot_notes_editText)).getText().toString().trim();
         spot = new Spot(googleId,"",geoPoint,notes,urlList,new Date(),spotType);
-        createDBEntry(spot);
+        startDBEntryService(spot);
     }
 
     /*
-    * volley: create and send db entry request
+    * start service to create spot
     * */
-    private void createDBEntry( final Spot spot ) {
-        StringRequest dbEntryRequest = new StringRequest(Request.Method.POST,PHP_CREATE_DB_ENTRY,this,this){
-            @Override
-            protected Map<String, String> getParams() throws AuthFailureError {
-                Map<String,String> params = new HashMap<>();
-                params.put(PHP_GOOGLE_ID,spot.getGoogleId());
-                params.put(PHP_GEO_POINT,new Gson().toJson(spot.getGeoPoint()));
-                params.put(PHP_SPOT_TYPE,spot.getSpotType().toString());
-                params.put(PHP_NOTES,spot.getNotes());
-                params.put(PHP_IMG_URL_LIST, new Gson().toJson(spot.getUrlList()));
-                params.put(PHP_CREATION_TIME, String.valueOf(spot.getDate().getTime()));
-                return params;
-            }
-        };
-        Volley.newRequestQueue(this).add(dbEntryRequest);
-    }
-
-    /*
-    * volley: creates ands sends image upload requests
-    *
-    * images get resized and converted to strings
-    * */
-    private void startImgUpload() {
-        for (final String imgPath : urlList){
-            StringRequest stringRequest = new StringRequest(Request.Method.POST,PHP_UPLOAD_IMAGE,this,this){
-                @Override
-                protected Map<String, String> getParams() throws AuthFailureError {
-                    Map<String,String> params = new HashMap<>();
-                    Bitmap bitmap = Utilities.decodeSampledBitmapFromResource(getResources(), imgPath, 400, 400);
-                    String image = Utilities.getStringImage(bitmap);
-                    String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ENGLISH).format(new Date());
-                    params.put(PHP_IMAGE_NAME, timeStamp + "_" + spot.getGoogleId() );
-                    params.put(PHP_ID,spot.getId());
-                    params.put(PHP_IMAGE,image);
-                    params.put(PHP_IMAGE_HASH, String.valueOf(imgPath.hashCode()));
-                    return params;
-                }
-            };
-
-            Volley.newRequestQueue(this).add(stringRequest);
-        }
-    }
-
-    /*
-    * volley: called by error
-    * */
-    @Override
-    public void onErrorResponse(VolleyError error) {
-        Toast.makeText(this,error.getMessage(),Toast.LENGTH_LONG).show();
-        progressDialog.dismiss();
-    }
-
-    /*
-    * volley: response from server
-    * */
-    @Override
-    public void onResponse(String response) {
-        try {
-            JSONObject jsonResponse = new JSONObject(response);
-            String message = jsonResponse.getString(PHP_MESSAGE);
-            String action = jsonResponse.getString(PHP_ACTION);
-            String id = jsonResponse.getString(PHP_ID);
-            String resultCode = jsonResponse.getString(PHP_RESULT_CODE);
-            boolean success = jsonResponse.getString(PHP_SUCCESS).equalsIgnoreCase("1");
-
-            if ( action.equalsIgnoreCase(DB_ACTION.CREATE_SPOT.toString())){
-                /*
-                * db entry created starting upload
-                * */
-                if (success){
-                    spot.setId(id);
-                    showImgUploadProgress();
-                    startImgUpload();
-                }else{
-                    switch (resultCode){
-                        case PHP_RESULT_SQL_ERROR:
-                            Log.d(log,"sql error, message: " + message );
-                            break;
-                        default:
-                            Log.d(log,"unknown resultCode: " + resultCode + " message: " + message);
-                    }
-                }
-
-            }else if ( action.equalsIgnoreCase(DB_ACTION.IMAGE_UPLOAD.toString())){
-                /*
-                * -image uploaded
-                * -check and remove hash set entry
-                * -update progress bar
-                * -show toast if it was the last response
-                * */
-                String responseImgHash = jsonResponse.getString(PHP_IMAGE_HASH);
-                if(success) {
-                    for (int i = urlHashList.size() ; i > 0 ; i-- ){
-                        if ( urlHashList.get(i).equalsIgnoreCase(responseImgHash) ){
-                            urlHashList.remove(i);
-                        }
-                    }
-
-                    showImgUploadProgress();
-
-                    if (urlHashList.isEmpty()) {
-                        progressDialog.dismiss();
-                        Toast.makeText(this, getString(R.string.spot_created_message), Toast.LENGTH_SHORT).show();
-                    /*
-                    Intent returnIntent = new Intent();
-                    setResult(NEW_SPOT_CREATED, returnIntent);
-                    finish();
-                    */
-                    }
-                }
-
-            }else {
-                /*
-                * no success
-                * dismissing dialog
-                * */
-                //// TODO: 4/18/2016 check resultCode..switch case..
-                Log.d(log,message);
-                switch (resultCode){
-                    case PHP_RESULT_FTP_LOGIN_FAIL:
-                        Log.d(log,resultCode);
-                        break;
-                    case PHP_RESULT_SQL_SUCCESS_NO_ITEMS:
-                        Log.d(log,resultCode);
-                        break;
-                    case PHP_RESULT_SQL_ERROR:
-                        Log.d(log,resultCode);
-                        break;
-                    case PHP_RESULT_REQUIRED_FIELDS_MISSING:
-                        Log.d(log,resultCode);
-                        break;
-                    default:
-                        Log.d(log,"unknown resultcode: " + resultCode);
-                }
-
-
-                Log.d(log,resultCode);
-                progressDialog.dismiss();
-
-            }
-        } catch (JSONException e) {
-            /*
-            * json error
-            * */
-            Log.d(log,e.getMessage());
-            Log.d(log,response);
-        }
+    private void startDBEntryService(final Spot spot) {
+        Intent serviceIntent = new Intent(this, CreateSpot_Service.class);
+        serviceIntent.putExtra(SPOT,new Gson().toJson(spot));
+        startService(serviceIntent);
     }
 
     // DIALOGS
@@ -489,13 +327,36 @@ public class Online_NewActivity extends AppCompatActivity implements View.OnClic
     private void showProgressDialog() {
         progressDialog = ProgressDialog.show(this
                 , getString(R.string.creating_spot_progressTitle)
-                , getString(R.string.creating_db_entry_message),
+                , getString(R.string.please_wait_message),
                 true);
     }
 
-    private void showImgUploadProgress() {
-        progressDialog.setTitle(getString(R.string.image_upload_started));
-        progressDialog.setMessage(urlHashList.size() + " " + getString(R.string.images_left_message));
+    /*
+    * ICreateSpot
+    * */
+    @Override
+    public void spotCreatedCallback() {
+        Log.d(log,"spotCreatedCallback");
+        progressDialog.dismiss();
+        setResult(NEW_SPOT_CREATED);
+        finish();
+    }
+
+    /*
+    * ICreateSpot
+    * */
+    @Override
+    public void progressUpdate(String message) {
+        Log.d(log,"progressUpdate");
+    }
+
+    /*
+    * ICreateSpot
+    * */
+    @Override
+    public void errorCallback(String message) {
+        Log.d(log,"errorCallback");
+        progressDialog.dismiss();
     }
 }
 

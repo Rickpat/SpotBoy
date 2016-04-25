@@ -3,7 +3,6 @@ package rickpat.spotboy.offline_activities;
 
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -14,6 +13,7 @@ import android.support.v4.view.ViewPager;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -56,14 +56,14 @@ public class Offline_NewActivity extends AppCompatActivity implements View.OnCli
     private AlertDialog catDialog;
     private GeoPoint geoPoint;
     private ViewPager mPager;
-    private Set<String> urlSet;
+    private ArrayList<String> urlList;
     private List<Fragment> viewPagerFragments;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_new);
-        urlSet = new HashSet<>();
+        urlList = new ArrayList<>();
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar_new);
         setSupportActionBar(toolbar);
         try{
@@ -92,12 +92,11 @@ public class Offline_NewActivity extends AppCompatActivity implements View.OnCli
 
     @Override       //After onStart... but not on first start
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        geoPoint = new Gson().fromJson(savedInstanceState.getString(GEOPOINT, "zero"), GeoPoint.class);
+        urlList = savedInstanceState.getStringArrayList(URL_LIST);
+        ((TextView) findViewById(R.id.new_spot_type_textView)).setText(savedInstanceState.getString(SPOT_TYPE, ""));
+        ((EditText) findViewById(R.id.new_spot_notes_editText)).setText(savedInstanceState.getString(NOTES, ""));
         super.onRestoreInstanceState(savedInstanceState);
-        SharedPreferences preferences = getSharedPreferences(PREFERENCES, MODE_PRIVATE);
-        geoPoint = new Gson().fromJson(preferences.getString(GEOPOINT, "zero"), GeoPoint.class);
-        ((TextView) findViewById(R.id.new_spot_type_textView)).setText(preferences.getString(PREF_SPOT_TYPE, ""));
-        ((EditText) findViewById(R.id.new_spot_notes_editText)).setText(preferences.getString(PREF_NOTES, ""));
-        urlSet = preferences.getStringSet(URL_LIST, new HashSet<String>());
         //next onResume
     }
 
@@ -115,14 +114,11 @@ public class Offline_NewActivity extends AppCompatActivity implements View.OnCli
 
     @Override       //After onPause
     protected void onSaveInstanceState(Bundle outState) {
+        outState.putStringArrayList(URL_LIST, urlList);
+        outState.putString(SPOT_TYPE, ((TextView) findViewById(R.id.new_spot_type_textView)).getText().toString().trim());
+        outState.putString(NOTES, ((EditText) findViewById(R.id.new_spot_notes_editText)).getText().toString().trim());
+        outState.putString(GEOPOINT,new Gson().toJson(geoPoint));
         super.onSaveInstanceState(outState);
-        SharedPreferences preferences = getSharedPreferences(PREFERENCES, MODE_PRIVATE);
-        SharedPreferences.Editor editor = preferences.edit();
-        editor.putStringSet(URL_LIST, urlSet);
-        editor.putString(PREF_SPOT_TYPE, ((TextView) findViewById(R.id.new_spot_type_textView)).getText().toString().trim());
-        editor.putString(PREF_NOTES, ((EditText) findViewById(R.id.new_spot_notes_editText)).getText().toString().trim());
-        editor.putString(GEOPOINT, new Gson().toJson(geoPoint));
-        editor.apply();
     }
 
     private Uri getOutputMediaFileUri() {
@@ -190,9 +186,9 @@ public class Offline_NewActivity extends AppCompatActivity implements View.OnCli
                 catDialog.show();
                 break;
             case R.id.new_spot_fab_photo:
-                if ( urlSet.size() < VIEW_PAGER_MAX_FRAGMENTS ){
+                if ( urlList.size() < VIEW_PAGER_MAX_FRAGMENTS ){
                     Uri uri = getOutputMediaFileUri();
-                    urlSet.add(uri.getEncodedPath());
+                    urlList.add(uri.getEncodedPath());
                     Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
                     intent.putExtra(MediaStore.EXTRA_OUTPUT, uri);
                     startActivityForResult(intent, CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE);
@@ -207,7 +203,7 @@ public class Offline_NewActivity extends AppCompatActivity implements View.OnCli
         SpotType spotType = Utilities.parseSpotTypeString(spotTypeString);
         String notes = ((EditText)findViewById(R.id.new_spot_notes_editText)).getText().toString().trim();
         List<String> urlList = new ArrayList<>();
-        urlList.addAll(urlSet);
+        urlList.addAll(this.urlList);
         Spot spot = new Spot("",geoPoint,notes,urlList,new Date(),spotType);
         return local_db.addSpotMultipleImages(spot);
     }
@@ -256,8 +252,9 @@ public class Offline_NewActivity extends AppCompatActivity implements View.OnCli
     * An adapter cares about the fragments inside the view pager.
     * */
     private void setViewPagerContent() {
+        removeRedundantPaths();
         List<String> imgURLList = new ArrayList<>();
-        imgURLList.addAll(urlSet);
+        imgURLList.addAll(urlList);
         for ( String url : imgURLList ){
             Bundle page = new Bundle();
             page.putString(IMG_URL, url);
@@ -265,5 +262,15 @@ public class Offline_NewActivity extends AppCompatActivity implements View.OnCli
         }
         PagerAdapter mPagerAdapter = new ScreenSlidePagerAdapter(getSupportFragmentManager(), viewPagerFragments);
         mPager.setAdapter(mPagerAdapter);
+    }
+
+    /*
+    *
+    * */
+    private void removeRedundantPaths() {
+        Set<String> stringSet = new HashSet<>();
+        stringSet.addAll(urlList);
+        urlList.clear();
+        urlList.addAll(stringSet);
     }
 }

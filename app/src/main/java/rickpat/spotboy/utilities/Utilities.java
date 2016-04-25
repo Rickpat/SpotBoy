@@ -104,16 +104,16 @@ public class Utilities {
         Bitmap icon;
         int resourceId = 0;
         switch (spotType){
-            case dirt:
+            case DIRT:
                 resourceId = R.drawable.ic_dirtcluster;
                 break;
-            case park:
+            case PARK:
                 resourceId = R.drawable.ic_parkcluster;
                 break;
-            case street:
+            case STREET:
                 resourceId = R.drawable.ic_streetcluster;
                 break;
-            case flat:
+            case FLAT:
                 resourceId = R.drawable.ic_flatcluster;
         }
         icon = BitmapFactory.decodeResource(applicationContext.getResources(), resourceId);
@@ -127,16 +127,16 @@ public class Utilities {
         Drawable icon;
         int resourceId = 0;
         switch (spotType){
-            case dirt:
+            case DIRT:
                 resourceId = R.drawable.ic_dirtmarker;
                 break;
-            case park:
+            case PARK:
                 resourceId = R.drawable.ic_parkmarker;
                 break;
-            case street:
+            case STREET:
                 resourceId = R.drawable.ic_streetmarker;
                 break;
-            case flat:
+            case FLAT:
                 resourceId = R.drawable.ic_flatmarker;
         }
 
